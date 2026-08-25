@@ -5,6 +5,6 @@
   "outputDirectory": "web/dist",
   "rewrites": [
     { "source": "/auth/ativar", "destination": "/index.html" },
-    { "source": "/((?!assets/|manifest.webmanifest|sw.js|favicon.ico).*)", "destination": "/index.html" }
+    { "source": "/((?!api/|assets/|manifest.webmanifest|sw.js|favicon.ico).*)", "destination": "/index.html" }
   ]
 }

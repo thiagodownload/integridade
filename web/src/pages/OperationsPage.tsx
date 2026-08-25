@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Clock3, Eye, Inbox, LoaderCircle, RefreshCw, Save, ShieldAlert, TrendingUp, Users } from 'lucide-react'
+import { AlertCircle, Clock3, Eye, Inbox, LoaderCircle, RefreshCw, Save, ShieldAlert, TrendingUp, Users, X } from 'lucide-react'
 import { CaseActivityPanel } from '../components/CaseActivityPanel'
 import { InternalShell } from '../components/InternalShell'
 import { MetricCard } from '../components/MetricCard'
@@ -196,16 +196,37 @@ export function OperationsPage() {
     void Promise.all([loadIdentity(), loadQueue()])
   }, [])
 
+  useEffect(() => {
+    if (!selectedId) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeCase()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedId])
+
+  function closeCase() {
+    setSelectedId(null)
+    setDetail(null)
+    setCandidates([])
+    setDetailLoading(false)
+  }
+
   async function openCase(reportId: string) {
     if (!supabase) return
     setSelectedId(reportId)
+    setDetail(null)
     setDetailLoading(true)
     setFeedback('')
     const { data, error } = await supabase.rpc('operations_get_report_detail', { p_report_id: reportId })
     if (error || !data) {
-      setDetail(null)
+      closeCase()
       setFeedback('Não foi possível abrir este caso ou seu perfil não possui acesso ao conteúdo.')
-      setDetailLoading(false)
       return
     }
 
@@ -290,14 +311,19 @@ export function OperationsPage() {
 
   const filteredCases = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return cases.filter((item) => {
-      if (statusFilter !== 'all' && item.status !== statusFilter) return false
-      if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
-      if (scopeFilter === 'standard' && item.restricted) return false
-      if (scopeFilter === 'restricted' && !item.restricted) return false
-      if (term && ![caseReference(item.id), item.category_name ?? '', item.principal_name ?? ''].some((value) => value.toLowerCase().includes(term))) return false
-      return true
-    })
+    return cases
+      .filter((item) => {
+        if (statusFilter !== 'all' && item.status !== statusFilter) return false
+        if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
+        if (scopeFilter === 'standard' && item.restricted) return false
+        if (scopeFilter === 'restricted' && !item.restricted) return false
+        if (term && ![caseReference(item.id), item.category_name ?? '', item.principal_name ?? ''].some((value) => value.toLowerCase().includes(term))) return false
+        return true
+      })
+      .sort((a, b) => {
+        const byArrival = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        return byArrival || a.id.localeCompare(b.id)
+      })
   }, [cases, priorityFilter, scopeFilter, search, statusFilter])
 
   const metrics = useMemo(() => ({
@@ -356,7 +382,7 @@ export function OperationsPage() {
 
       <div className="dashboard-layout operations-layout">
         <section className="dashboard-card case-table-card">
-          <header className="card-header"><div><strong>Casos autorizados</strong><span>{filteredCases.length} de {cases.length} na fila atual.</span></div></header>
+          <header className="card-header"><div><strong>Casos autorizados</strong><span>{filteredCases.length} de {cases.length} na fila atual • ordem de chegada</span></div></header>
           {loading
             ? <div className="operations-empty"><LoaderCircle className="spin" size={24} /><strong>Carregando fila real</strong></div>
             : filteredCases.length === 0
@@ -387,47 +413,50 @@ export function OperationsPage() {
         </section>
       </div>
 
-      {selectedId && <section className="dashboard-card case-detail-card">
-        {detailLoading
-          ? <div className="operations-empty"><LoaderCircle className="spin" size={24} /><strong>Abrindo caso</strong></div>
-          : detail && <>
-              <header className="case-detail-header">
-                <div><span className="eyebrow">{caseReference(detail.id)}</span><h2>{detail.categoryName ?? 'Relato sem categoria'}</h2><p>Recebido em {formatDate(detail.createdAt)}</p></div>
-                <div className="case-detail-badges"><span className={`priority-pill ${detail.priority}`}>{priorityLabel[detail.priority]}</span>{detail.restricted && <span className="status danger"><ShieldAlert size={13} /> Restrito</span>}</div>
-              </header>
+      {selectedId && <div className="case-modal-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) closeCase() }}>
+        <section aria-label="Tratamento da denúncia" aria-modal="true" className="dashboard-card case-detail-card case-modal" role="dialog">
+          <button aria-label="Fechar caso" className="case-modal-close" onClick={closeCase} type="button"><X size={21} /></button>
+          {detailLoading
+            ? <div className="operations-empty case-modal-loading"><LoaderCircle className="spin" size={28} /><strong>Abrindo caso</strong><span>Carregando dados autorizados, histórico e permissões.</span></div>
+            : detail && <>
+                <header className="case-detail-header">
+                  <div><span className="eyebrow">{caseReference(detail.id)}</span><h2>{detail.categoryName ?? 'Relato sem categoria'}</h2><p>Recebido em {formatDate(detail.createdAt)}</p></div>
+                  <div className="case-detail-badges"><span className={`priority-pill ${detail.priority}`}>{priorityLabel[detail.priority]}</span>{detail.restricted && <span className="status danger"><ShieldAlert size={13} /> Restrito</span>}</div>
+                </header>
 
-              {detail.restricted && <div className="restricted-callout"><ShieldAlert size={20} /><div><strong>Acesso restrito</strong><span>A abertura deste conteúdo foi registrada na auditoria. A equipe e os observadores só podem ser alterados por Privacy Officer.</span></div></div>}
-              {isObserver && !canManageTeam && <div className="restricted-callout"><Eye size={20} /><div><strong>Acompanhamento executivo somente leitura</strong><span>Você pode consultar o caso e sua timeline, mas não pode alterar andamento, equipe, notas ou comunicação com o denunciante.</span></div></div>}
+                {detail.restricted && <div className="restricted-callout"><ShieldAlert size={20} /><div><strong>Acesso restrito</strong><span>A abertura deste conteúdo foi registrada na auditoria. A equipe e os observadores só podem ser alterados por Privacy Officer.</span></div></div>}
+                {isObserver && !canManageTeam && <div className="restricted-callout"><Eye size={20} /><div><strong>Acompanhamento executivo somente leitura</strong><span>Você pode consultar o caso e sua timeline, mas não pode alterar andamento, equipe, notas ou comunicação com o denunciante.</span></div></div>}
 
-              <div className="case-detail-grid">
-                <div className="case-detail-main">
-                  <article className="case-section"><h3>Relato</h3><p className="report-description">{detail.description}</p></article>
-                  <article className="case-section"><h3>Contexto informado</h3><dl className="case-facts"><div><dt>Relação</dt><dd>{detail.relationship || 'Não informado'}</dd></div><div><dt>Local</dt><dd>{detail.location || 'Não informado'}</dd></div><div><dt>Data do fato</dt><dd>{detail.occurredOn || 'Não informada'}</dd></div><div><dt>Em andamento</dt><dd>{detail.ongoing == null ? 'Não informado' : detail.ongoing ? 'Sim' : 'Não'}</dd></div><div className="wide"><dt>Pessoas envolvidas</dt><dd>{detail.peopleInvolved || 'Não informado'}</dd></div></dl></article>
+                <div className="case-detail-grid">
+                  <div className="case-detail-main">
+                    <article className="case-section"><h3>Relato</h3><p className="report-description">{detail.description}</p></article>
+                    <article className="case-section"><h3>Contexto informado</h3><dl className="case-facts"><div><dt>Relação</dt><dd>{detail.relationship || 'Não informado'}</dd></div><div><dt>Local</dt><dd>{detail.location || 'Não informado'}</dd></div><div><dt>Data do fato</dt><dd>{detail.occurredOn || 'Não informada'}</dd></div><div><dt>Em andamento</dt><dd>{detail.ongoing == null ? 'Não informado' : detail.ongoing ? 'Sim' : 'Não'}</dd></div><div className="wide"><dt>Pessoas envolvidas</dt><dd>{detail.peopleInvolved || 'Não informado'}</dd></div></dl></article>
+                  </div>
+
+                  <aside className="case-detail-side">
+                    <article className="case-section"><h3>Andamento</h3>
+                      <label className="field"><span>Status</span><select disabled={!canChangeStatus} value={statusDraft} onChange={(event) => setStatusDraft(event.target.value as ReportStatus)}>{statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                      <label className="field"><span>Prioridade</span><select disabled={!canManageTeam} value={priorityDraft} onChange={(event) => setPriorityDraft(event.target.value as ReportPriority)}>{priorityOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
+                      {(canChangeStatus || canManageTeam) && <button className="button primary compact" disabled={savingState} onClick={() => void saveState()} type="button">{savingState ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar andamento</button>}
+                    </article>
+
+                    <article className="case-section"><h3><Users size={17} /> Equipe e acompanhamento</h3>
+                      {canManageTeam
+                        ? <>
+                            <label className="field"><span>Responsável principal</span><select value={principalDraft} onChange={(event) => { const value = event.target.value; setPrincipalDraft(value); setCollaboratorDraft((current) => current.filter((id) => id !== value)); setObserverDraft((current) => current.filter((id) => id !== value)) }}><option value="">Não atribuído</option>{assigneeCandidates.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}</option>)}</select></label>
+                            <div className="collaborator-picker"><strong>Colaboradores</strong>{assigneeCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={collaboratorDraft.includes(person.user_id)} onChange={() => toggleCollaborator(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
+                            <div className="collaborator-picker"><strong>Observadores</strong><small>Somente leitura. Em casos restritos, esta concessão é exclusiva do Privacy Officer.</small>{observerCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={observerDraft.includes(person.user_id)} onChange={() => toggleObserver(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
+                            <button className="button secondary compact" disabled={savingTeam} onClick={() => void saveTeam()} type="button">{savingTeam ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar equipe e acessos</button>
+                          </>
+                        : <div className="team-readonly"><div><small>Principal</small><strong>{detail.principal?.displayName ?? 'Não atribuído'}</strong></div><div><small>Colaboradores</small><strong>{detail.collaborators.length ? detail.collaborators.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div><div><small>Observadores</small><strong>{detail.observers.length ? detail.observers.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div></div>}
+                    </article>
+                  </aside>
                 </div>
 
-                <aside className="case-detail-side">
-                  <article className="case-section"><h3>Andamento</h3>
-                    <label className="field"><span>Status</span><select disabled={!canChangeStatus} value={statusDraft} onChange={(event) => setStatusDraft(event.target.value as ReportStatus)}>{statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                    <label className="field"><span>Prioridade</span><select disabled={!canManageTeam} value={priorityDraft} onChange={(event) => setPriorityDraft(event.target.value as ReportPriority)}>{priorityOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-                    {(canChangeStatus || canManageTeam) && <button className="button primary compact" disabled={savingState} onClick={() => void saveState()} type="button">{savingState ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar andamento</button>}
-                  </article>
-
-                  <article className="case-section"><h3><Users size={17} /> Equipe e acompanhamento</h3>
-                    {canManageTeam
-                      ? <>
-                          <label className="field"><span>Responsável principal</span><select value={principalDraft} onChange={(event) => { const value = event.target.value; setPrincipalDraft(value); setCollaboratorDraft((current) => current.filter((id) => id !== value)); setObserverDraft((current) => current.filter((id) => id !== value)) }}><option value="">Não atribuído</option>{assigneeCandidates.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}</option>)}</select></label>
-                          <div className="collaborator-picker"><strong>Colaboradores</strong>{assigneeCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={collaboratorDraft.includes(person.user_id)} onChange={() => toggleCollaborator(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
-                          <div className="collaborator-picker"><strong>Observadores</strong><small>Somente leitura. Em casos restritos, esta concessão é exclusiva do Privacy Officer.</small>{observerCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={observerDraft.includes(person.user_id)} onChange={() => toggleObserver(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
-                          <button className="button secondary compact" disabled={savingTeam} onClick={() => void saveTeam()} type="button">{savingTeam ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar equipe e acessos</button>
-                        </>
-                      : <div className="team-readonly"><div><small>Principal</small><strong>{detail.principal?.displayName ?? 'Não atribuído'}</strong></div><div><small>Colaboradores</small><strong>{detail.collaborators.length ? detail.collaborators.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div><div><small>Observadores</small><strong>{detail.observers.length ? detail.observers.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div></div>}
-                  </article>
-                </aside>
-              </div>
-
-              <CaseActivityPanel reportId={detail.id} canAddNote={canAddNote} canMessageReporter={canMessageReporter} />
-            </>}
-      </section>}
+                <CaseActivityPanel reportId={detail.id} canAddNote={canAddNote} canMessageReporter={canMessageReporter} />
+              </>}
+        </section>
+      </div>}
     </InternalShell>
   )
 }

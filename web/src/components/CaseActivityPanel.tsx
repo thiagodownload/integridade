@@ -47,6 +47,8 @@ function eventLabel(event: ActivityEvent) {
     case 'principal_revoked': return { title: 'Responsável principal removido', detail: `${String(meta.displayName ?? 'Usuário')} deixou de ser o responsável principal.` }
     case 'collaborator_added': return { title: 'Colaborador adicionado', detail: `${String(meta.displayName ?? 'Usuário')} foi adicionado à equipe do caso.` }
     case 'collaborator_removed': return { title: 'Colaborador removido', detail: `${String(meta.displayName ?? 'Usuário')} foi removido da equipe do caso.` }
+    case 'observer_added': return { title: 'Observador adicionado', detail: `${String(meta.displayName ?? 'Usuário')} recebeu acompanhamento somente leitura deste caso.` }
+    case 'observer_removed': return { title: 'Observador removido', detail: `${String(meta.displayName ?? 'Usuário')} deixou de acompanhar este caso.` }
     case 'internal_note_added': return { title: 'Nota interna registrada', detail: 'Uma nota interna foi adicionada ao caso.' }
     case 'staff_message_sent': return { title: 'Mensagem enviada ao denunciante', detail: 'A equipe enviou uma atualização pelo canal seguro.' }
     case 'reporter_message_received': return { title: 'Mensagem recebida do denunciante', detail: 'O denunciante enviou uma nova mensagem pelo protocolo.' }

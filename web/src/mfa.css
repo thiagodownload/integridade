@@ -1,0 +1,118 @@
+.mfa-card {
+  width: min(100%, 560px);
+}
+
+.mfa-intro,
+.mfa-enrollment {
+  display: grid;
+  gap: 16px;
+  margin-top: 26px;
+}
+
+.mfa-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: .88rem;
+  line-height: 1.5;
+}
+
+.mfa-feature svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--success);
+}
+
+.mfa-qr-wrap {
+  width: min(100%, 260px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 14px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.mfa-qr-wrap img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mfa-manual {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .84rem;
+  line-height: 1.5;
+}
+
+.mfa-manual strong {
+  color: var(--navy);
+}
+
+.mfa-manual code {
+  display: block;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+  background: #f5f8fc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--navy);
+  font-size: .8rem;
+  user-select: all;
+}
+
+.mfa-code-input {
+  text-align: center;
+  font-size: 1.45rem !important;
+  letter-spacing: .32em;
+  font-variant-numeric: tabular-nums;
+  padding-left: calc(16px + .32em) !important;
+}
+
+.mfa-signout {
+  width: 100%;
+  margin-top: 18px;
+  padding: 10px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mfa-signout:hover {
+  color: var(--navy);
+}
+
+.internal-mfa-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success) !important;
+  font-size: .68rem !important;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .mfa-qr-wrap {
+    width: min(100%, 220px);
+  }
+
+  .mfa-code-input {
+    font-size: 1.25rem !important;
+  }
+}

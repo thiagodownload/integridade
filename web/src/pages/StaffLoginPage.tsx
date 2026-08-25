@@ -54,13 +54,13 @@ export function StaffLoginPage() {
     }
 
     setRecovering(true)
-    const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
-      redirectTo: `${window.location.origin}/auth/ativar`,
+    const { error: recoveryError } = await supabase.functions.invoke('request-password-recovery', {
+      body: { email: normalizedEmail },
     })
     setRecovering(false)
 
     if (recoveryError) {
-      setError('Não foi possível solicitar a recuperação agora. Tente novamente mais tarde ou procure o administrador do canal.')
+      setError('O serviço de recuperação está temporariamente indisponível. Procure o administrador do canal se o problema continuar.')
       return
     }
 

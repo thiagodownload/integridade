@@ -4,6 +4,15 @@ export function requiredEnv(name: string): string {
   return value
 }
 
+type ServiceClient = {
+  rpc: (name: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message?: string } | null }>
+}
+
+export type PublicCryptoMaterial = {
+  protocolPepper: string
+  contactEncryptionKey: string
+}
+
 function base64url(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
@@ -16,6 +25,18 @@ function fromBase64url(value: string): Uint8Array {
   return Uint8Array.from(binary, c => c.charCodeAt(0))
 }
 
+export async function loadPublicCryptoMaterial(service: ServiceClient): Promise<PublicCryptoMaterial> {
+  const { data, error } = await service.rpc('get_public_crypto_material_internal')
+  if (error) throw new Error('public_crypto_material_unavailable')
+
+  const row = Array.isArray(data) ? data[0] as Record<string, unknown> | undefined : data as Record<string, unknown> | null
+  const protocolPepper = row?.protocol_pepper ? String(row.protocol_pepper) : ''
+  const contactEncryptionKey = row?.contact_encryption_key ? String(row.contact_encryption_key) : ''
+
+  if (!protocolPepper || !contactEncryptionKey) throw new Error('public_crypto_material_unavailable')
+  return { protocolPepper, contactEncryptionKey }
+}
+
 export function generateProtocol(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   const bytes = crypto.getRandomValues(new Uint8Array(16))
@@ -24,15 +45,14 @@ export function generateProtocol(): string {
   return `CI-${new Date().getUTCFullYear().toString().slice(-2)}-${token.slice(0, 4)}-${token.slice(4, 8)}-${token.slice(8, 12)}-${token.slice(12, 16)}`
 }
 
-export async function protocolDigest(protocol: string): Promise<string> {
-  const pepper = requiredEnv('PROTOCOL_PEPPER')
+export async function protocolDigest(protocol: string, pepper = requiredEnv('PROTOCOL_PEPPER')): Promise<string> {
   const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pepper), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(protocol.trim().toUpperCase()))
   return base64url(new Uint8Array(sig))
 }
 
-export async function encryptContact(plainText: string): Promise<{ ciphertext: string; nonce: string }> {
-  const rawKey = fromBase64url(requiredEnv('CONTACT_ENCRYPTION_KEY'))
+export async function encryptContact(plainText: string, encodedKey = requiredEnv('CONTACT_ENCRYPTION_KEY')): Promise<{ ciphertext: string; nonce: string }> {
+  const rawKey = fromBase64url(encodedKey)
   if (rawKey.byteLength !== 32) throw new Error('CONTACT_ENCRYPTION_KEY must be 32 bytes, base64url encoded')
   const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt'])
   const nonce = crypto.getRandomValues(new Uint8Array(12))
@@ -40,8 +60,8 @@ export async function encryptContact(plainText: string): Promise<{ ciphertext: s
   return { ciphertext: base64url(new Uint8Array(encrypted)), nonce: base64url(nonce) }
 }
 
-export async function decryptContact(ciphertext: string, nonce: string): Promise<string> {
-  const rawKey = fromBase64url(requiredEnv('CONTACT_ENCRYPTION_KEY'))
+export async function decryptContact(ciphertext: string, nonce: string, encodedKey = requiredEnv('CONTACT_ENCRYPTION_KEY')): Promise<string> {
+  const rawKey = fromBase64url(encodedKey)
   const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt'])
   const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromBase64url(nonce) }, key, fromBase64url(ciphertext))
   return new TextDecoder().decode(decrypted)

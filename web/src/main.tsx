@@ -4,6 +4,7 @@ import App from './App'
 import './styles.css'
 import './auth.css'
 import './mfa.css'
+import './admin.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

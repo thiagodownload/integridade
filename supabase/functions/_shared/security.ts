@@ -31,7 +31,7 @@ export async function protocolDigest(protocol: string): Promise<string> {
   return base64url(new Uint8Array(sig))
 }
 
-export async function encryptContact(plainText: string): Promise<{ciphertext: string; nonce: string}> {
+export async function encryptContact(plainText: string): Promise<{ ciphertext: string; nonce: string }> {
   const rawKey = fromBase64url(requiredEnv('CONTACT_ENCRYPTION_KEY'))
   if (rawKey.byteLength !== 32) throw new Error('CONTACT_ENCRYPTION_KEY must be 32 bytes, base64url encoded')
   const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['encrypt'])
@@ -47,8 +47,17 @@ export async function decryptContact(ciphertext: string, nonce: string): Promise
   return new TextDecoder().decode(decrypted)
 }
 
+export const corsHeaders = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+  'access-control-allow-methods': 'POST, OPTIONS',
+  'access-control-max-age': '86400'
+}
+
 export const jsonHeaders = {
+  ...corsHeaders,
   'content-type': 'application/json; charset=utf-8',
   'cache-control': 'no-store',
-  'referrer-policy': 'no-referrer'
+  'referrer-policy': 'no-referrer',
+  'x-content-type-options': 'nosniff'
 }

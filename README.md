@@ -12,6 +12,34 @@ Protótipo responsivo e arquitetura inicial para um canal empresarial de denúnc
 - Edge Functions de referência para criar relato, consultar protocolo e disparar notificações.
 - Documentação de arquitetura, privacidade, segurança e roadmap.
 
+## Aplicação React — v0.2
+
+A evolução do protótipo está em `web/` e já separa os três contextos do produto:
+
+- Portal público: página inicial, registro guiado e acompanhamento por protocolo.
+- Operações: fila, métricas de SLA, casos e alertas.
+- Administração: identidade, categorias, SLA, notificações, e-mail, acessos e privacidade.
+
+Stack atual: React 19.2, TypeScript, Vite 8.1, Lucide React e Supabase JS. A configuração do Supabase usa apenas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`; chaves privilegiadas e credenciais nunca entram no bundle do navegador.
+
+Para executar localmente:
+
+```bash
+cd web
+cp .env.example .env
+npm install
+npm run dev
+```
+
+Para validar:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+> A v0.2 ainda usa dados demonstrativos nos painéis. A conexão definitiva com banco, Auth/MFA e Edge Functions entra após a definição do projeto Supabase dedicado ao Canal de Integridade.
+
 ## Executar o protótipo
 
 No diretório `prototype`:

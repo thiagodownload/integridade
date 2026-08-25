@@ -1,0 +1,37 @@
+import { PublicFooter } from './components/PublicFooter'
+import { PublicHeader } from './components/PublicHeader'
+import { useHashRoute } from './lib/navigation'
+import { AdminPage } from './pages/AdminPage'
+import { HomePage } from './pages/HomePage'
+import { OperationsPage } from './pages/OperationsPage'
+import { ReportPage } from './pages/ReportPage'
+import { AccessibilityPage, PrivacyPage } from './pages/StaticPages'
+import { TrackPage } from './pages/TrackPage'
+
+export default function App() {
+  const route = useHashRoute()
+  const internal = route === 'operations' || route === 'admin'
+
+  const page = (() => {
+    switch (route) {
+      case 'report': return <ReportPage />
+      case 'track': return <TrackPage />
+      case 'operations': return <OperationsPage />
+      case 'admin': return <AdminPage />
+      case 'privacy': return <PrivacyPage />
+      case 'accessibility': return <AccessibilityPage />
+      default: return <HomePage />
+    }
+  })()
+
+  if (internal) return page
+
+  return (
+    <div className="public-app">
+      <a className="skip-link" href="#main-content">Ir para o conteúdo</a>
+      <PublicHeader />
+      <main id="main-content">{page}</main>
+      <PublicFooter />
+    </div>
+  )
+}

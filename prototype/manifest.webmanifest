@@ -1,0 +1,9 @@
+{
+  "name": "Canal de Integridade",
+  "short_name": "Integridade",
+  "start_url": "./#/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "description": "Canal empresarial de integridade e acompanhamento de relatos."
+}

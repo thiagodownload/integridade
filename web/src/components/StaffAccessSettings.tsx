@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Clock3, LoaderCircle, MailPlus, Save, Shield, ShieldCheck, UserRoundCog } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-type StaffRole = 'platform_admin' | 'compliance_manager' | 'investigator' | 'auditor' | 'privacy_officer'
+type StaffRole = 'platform_admin' | 'compliance_manager' | 'investigator' | 'auditor' | 'privacy_officer' | 'executive_viewer'
 
 type StaffMember = {
   user_id: string
@@ -20,9 +20,10 @@ type Feedback = { type: 'success' | 'error'; text: string } | null
 const roleOptions: Array<{ value: StaffRole; label: string; description: string }> = [
   { value: 'platform_admin', label: 'Administrador da plataforma', description: 'Configura regras, usuários e integrações. Não recebe acesso automático a relatos.' },
   { value: 'compliance_manager', label: 'Gestor de Compliance', description: 'Gerencia fila, roteamento e casos não restritos conforme as políticas.' },
-  { value: 'investigator', label: 'Investigador', description: 'Acessa apenas casos atribuídos ou explicitamente liberados.' },
+  { value: 'investigator', label: 'Investigador', description: 'Acessa apenas casos atribuídos como principal ou colaborador.' },
   { value: 'auditor', label: 'Auditor', description: 'Consulta trilhas de auditoria conforme autorização.' },
   { value: 'privacy_officer', label: 'Privacy Officer', description: 'Atua em triagem e casos marcados como restritos.' },
+  { value: 'executive_viewer', label: 'Diretoria / Acompanhamento Executivo', description: 'Acompanha em leitura apenas os casos em que for incluído como Observador.' },
 ]
 
 const roleLabel = Object.fromEntries(roleOptions.map((item) => [item.value, item.label])) as Record<StaffRole, string>
@@ -226,7 +227,7 @@ export function StaffAccessSettings() {
     <div className="settings-heading settings-heading-actions">
       <div>
         <h2>Usuários, papéis e segurança</h2>
-        <p>Gerencie quem entra na área interna. Papéis administrativos e investigativos continuam independentes.</p>
+        <p>Gerencie quem entra na área interna. Papéis administrativos, operacionais e executivos continuam independentes.</p>
       </div>
       <div className="access-summary" aria-label="Resumo de acessos">
         <span><strong>{activeCount}</strong> ativos</span>
@@ -291,7 +292,7 @@ export function StaffAccessSettings() {
           })}
         </div>}
 
-    <div className="security-callout"><UserRoundCog size={19} /><p>Conceder <strong>platform_admin</strong> não libera conteúdo de denúncias. Acesso a casos continua dependendo de papéis operacionais, atribuição explícita e regras de restrição.</p></div>
+    <div className="security-callout"><UserRoundCog size={19} /><p>Conceder <strong>platform_admin</strong> não libera conteúdo de denúncias. O papel executivo também não abre casos automaticamente: a Diretoria precisa ser incluída como <strong>Observador</strong> em cada caso que deva acompanhar em detalhe.</p></div>
   </>
 }
 

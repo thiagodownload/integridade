@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bell, Building2, CheckCircle2, Clock3, KeyRound, LoaderCircle, Mail, Plus, Save, Shield, Tags, Users } from 'lucide-react'
 import { InternalShell } from '../components/InternalShell'
+import { StaffAccessSettings } from '../components/StaffAccessSettings'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 
 const tabs = [
@@ -49,6 +50,7 @@ interface SlaState {
 }
 
 const editableTabs = new Set<TabId>(['geral', 'categorias', 'sla'])
+const liveTabs = new Set<TabId>(['geral', 'categorias', 'sla', 'acessos'])
 const priorityOrder: Priority[] = ['critical', 'high', 'medium', 'low']
 const priorityLabels: Record<Priority, string> = {
   critical: 'Crítica',
@@ -228,11 +230,11 @@ export function AdminPage() {
         <div><span className="eyebrow">Administração</span><h1>Regras e configurações</h1><p>Configuração do canal sem conceder acesso automático ao conteúdo das denúncias.</p></div>
         {editableTabs.has(tab)
           ? <button className="button primary" disabled={!canSave} onClick={saveCurrentTab} type="button">{saving ? <LoaderCircle className="spin" size={18} /> : <Save size={18} />} {saving ? 'Salvando...' : 'Salvar alterações'}</button>
-          : <span className="admin-module-badge">Próximo módulo</span>}
+          : <span className={`admin-module-badge ${liveTabs.has(tab) ? 'live' : ''}`}>{liveTabs.has(tab) ? 'Módulo ativo' : 'Próximo módulo'}</span>}
       </div>
 
       <div className={`connection-banner ${supabaseConfigured ? 'connected' : ''}`}>
-        <span className="connection-dot" /><div><strong>{supabaseConfigured ? 'Supabase conectado • MFA/AAL2 obrigatório' : 'Supabase ainda não conectado neste ambiente'}</strong><p>{supabaseConfigured ? 'Geral, Categorias e SLA já usam dados reais. Alterações são auditadas no banco.' : 'Preencha apenas URL e publishable key no ambiente. Segredos nunca entram no bundle.'}</p></div>
+        <span className="connection-dot" /><div><strong>{supabaseConfigured ? 'Supabase conectado • MFA/AAL2 obrigatório' : 'Supabase ainda não conectado neste ambiente'}</strong><p>{supabaseConfigured ? 'Geral, Categorias, SLA e Acessos usam dados reais. Alterações administrativas são auditadas no banco.' : 'Preencha apenas URL e publishable key no ambiente. Segredos nunca entram no bundle.'}</p></div>
       </div>
 
       <div className="admin-tabs" role="tablist">
@@ -250,7 +252,7 @@ export function AdminPage() {
             {tab === 'sla' && <SlaSettings value={slaPolicies} onChange={setSlaPolicies} />}
             {tab === 'notificacoes' && <NotificationSettings />}
             {tab === 'email' && <EmailSettings />}
-            {tab === 'acessos' && <AccessSettings />}
+            {tab === 'acessos' && <StaffAccessSettings />}
             {tab === 'privacidade' && <PrivacySettings />}
           </>}
       </section>
@@ -331,10 +333,6 @@ function NotificationSettings() {
 
 function EmailSettings() {
   return <><PendingModule title="Entrega de e-mail" text="O frontend nunca armazenará credenciais SMTP. O envio será feito por função segura/API de provedor e outbox transacional." /><div className="two-columns"><label className="field"><span>Remetente exibido</span><input disabled placeholder="Canal de Integridade" /></label><label className="field"><span>E-mail do remetente</span><input disabled type="email" placeholder="integridade@empresa.com.br" /></label></div><div className="security-callout"><KeyRound size={19} /><p>API keys, senhas SMTP e secrets ficam no secret manager do backend/Supabase Edge Functions, nunca em tabelas acessíveis ao navegador.</p></div></>
-}
-
-function AccessSettings() {
-  return <><PendingModule title="Papéis e acesso" text="Seu platform_admin e o MFA já são reais. A próxima etapa desta aba será gestão de usuários, papéis, status e MFA sem conceder acesso automático a relatos." />{[['Administrador do sistema', 'Configura regras, usuários e integrações. Sem acesso automático aos relatos.'], ['Gestor de Compliance', 'Gerencia fila, roteamento e indicadores autorizados.'], ['Investigador', 'Acessa apenas casos atribuídos ou liberados para seu escopo.'], ['Auditor', 'Consulta trilhas de auditoria conforme autorização.'], ['Privacy Officer', 'Atua em triagem e casos marcados como restritos.']].map(([title, text]) => <div className="role-row muted-setting" key={title}><div><strong>{title}</strong><span>{text}</span></div><span className="pending-pill">Próxima fase</span></div>)}</>
 }
 
 function PrivacySettings() {

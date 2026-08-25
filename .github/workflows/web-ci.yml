@@ -6,12 +6,14 @@ on:
     paths:
       - 'web/**'
       - 'api/**'
+      - 'package.json'
       - 'vercel.json'
       - '.github/workflows/web-ci.yml'
   pull_request:
     paths:
       - 'web/**'
       - 'api/**'
+      - 'package.json'
       - 'vercel.json'
       - '.github/workflows/web-ci.yml'
 
@@ -34,7 +36,11 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
+      - name: Install gateway dependencies
+        working-directory: .
+        run: npm install --no-audit --no-fund
+
+      - name: Install frontend dependencies
         run: npm install --no-audit --no-fund
 
       - name: Typecheck
@@ -61,11 +67,15 @@ jobs:
         run: |
           set -euo pipefail
           url='https://integridade.mundialatacadista.com.br/api/public/config'
+          last_status=''
+          last_body=''
           for attempt in $(seq 1 24); do
             body_file="$(mktemp)"
             status="$(curl --silent --show-error --location --max-time 15 --output "$body_file" --write-out '%{http_code}' "$url" || true)"
             body="$(cat "$body_file")"
             rm -f "$body_file"
+            last_status="$status"
+            last_body="$body"
             if [ "$status" = '200' ] && echo "$body" | grep -q '"organizationSlug":"integridade"'; then
               echo 'Privacy gateway respondeu corretamente.'
               exit 0
@@ -73,5 +83,6 @@ jobs:
             echo "Tentativa $attempt/24: HTTP ${status:-erro}. Aguardando deployment..."
             sleep 10
           done
-          echo 'Privacy gateway não respondeu com a configuração esperada.' >&2
+          echo "Privacy gateway falhou. Último HTTP: ${last_status:-erro}" >&2
+          echo "Resposta final: ${last_body:0:500}" >&2
           exit 1

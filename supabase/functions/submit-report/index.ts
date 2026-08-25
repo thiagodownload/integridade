@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
-import { corsHeaders, encryptContact, generateProtocol, jsonHeaders, protocolDigest, requiredEnv } from '../_shared/security.ts'
+import { encryptContact, generateProtocol, loadPublicCryptoMaterial, protocolDigest, requiredEnv } from '../_shared/security.ts'
+import { GatewayAuthError, gatewayIdentityDigest, verifyVercelGateway } from '../_shared/vercel-gateway.ts'
 
 type Input = {
   organizationSlug: string
@@ -14,10 +15,19 @@ type Input = {
   goodFaith: boolean
 }
 
+const responseHeaders = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'no-store',
+  'referrer-policy': 'no-referrer',
+  'x-content-type-options': 'nosniff',
+}
+
 class InputError extends Error {
-  constructor(public code: string) {
-    super(code)
-  }
+  constructor(public code: string) { super(code) }
+}
+
+function reply(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), { status, headers: responseHeaders })
 }
 
 function optionalText(value: unknown, maxLength: number, code: string): string | null {
@@ -47,34 +57,42 @@ function mapRpcError(message: string): { status: number; code: string } | null {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders })
-  if (req.method !== 'POST') return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405, headers: jsonHeaders })
+  if (req.method !== 'POST') return reply(405, { error: 'method_not_allowed' })
 
   try {
-    const input = await req.json() as Input
+    await verifyVercelGateway(req)
+    const identityDigest = gatewayIdentityDigest(req)
+    const service = createClient(requiredEnv('SUPABASE_URL'), requiredEnv('SUPABASE_SERVICE_ROLE_KEY'), {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
 
+    const { data: rateAllowed, error: rateError } = await service.rpc('claim_public_rate_limit_internal', {
+      p_identity_digest: identityDigest,
+      p_action: 'submit_report',
+      p_limit: 5,
+      p_window_seconds: 3600,
+    })
+    if (rateError) return reply(503, { error: 'rate_limit_unavailable' })
+    if (rateAllowed !== true) return reply(429, { error: 'too_many_requests' })
+
+    const input = await req.json() as Input
     if (!input || typeof input !== 'object') throw new InputError('invalid_payload')
     if (input.goodFaith !== true) throw new InputError('good_faith_required')
-    if (typeof input.organizationSlug !== 'string' || !/^[a-z0-9][a-z0-9-]{0,62}$/.test(input.organizationSlug)) {
-      throw new InputError('invalid_organization')
-    }
+    if (typeof input.organizationSlug !== 'string' || !/^[a-z0-9][a-z0-9-]{0,62}$/.test(input.organizationSlug)) throw new InputError('invalid_organization')
     if (typeof input.description !== 'string') throw new InputError('invalid_description')
 
     const description = input.description.trim()
-    if (!description || description.length > 20000) throw new InputError('invalid_description')
+    if (description.length < 20 || description.length > 20000) throw new InputError('invalid_description')
 
     const relationship = optionalText(input.relationship, 200, 'invalid_relationship')
     const locationText = optionalText(input.location, 300, 'invalid_location')
     const peopleInvolved = optionalText(input.peopleInvolved, 8000, 'invalid_people_involved')
     const occurredOn = optionalDate(input.occurredOn)
-
     if (input.ongoing !== undefined && typeof input.ongoing !== 'boolean') throw new InputError('invalid_ongoing')
 
     let categoryId: string | null = null
     if (input.categoryId !== undefined && input.categoryId !== null && input.categoryId !== '') {
-      if (typeof input.categoryId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.categoryId)) {
-        throw new InputError('invalid_category')
-      }
+      if (typeof input.categoryId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.categoryId)) throw new InputError('invalid_category')
       categoryId = input.categoryId
     }
 
@@ -85,17 +103,12 @@ Deno.serve(async (req) => {
       if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new InputError('invalid_email')
     }
 
-    // Não registrar corpo, IP, user-agent, e-mail ou protocolo em console.
-    // O endpoint público deve ficar atrás do privacy gateway/antiabuso antes de produção.
+    const cryptoMaterial = await loadPublicCryptoMaterial(service)
     const protocol = generateProtocol()
-    const digest = await protocolDigest(protocol)
-    const encrypted = email ? await encryptContact(email) : null
+    const digest = await protocolDigest(protocol, cryptoMaterial.protocolPepper)
+    const encrypted = email ? await encryptContact(email, cryptoMaterial.contactEncryptionKey) : null
 
-    const supabase = createClient(requiredEnv('SUPABASE_URL'), requiredEnv('SUPABASE_SERVICE_ROLE_KEY'), {
-      auth: { persistSession: false, autoRefreshToken: false }
-    })
-
-    const { data: reportId, error } = await supabase.rpc('create_report_internal', {
+    const { data: reportId, error } = await service.rpc('create_report_internal', {
       p_organization_slug: input.organizationSlug,
       p_category_id: categoryId,
       p_relationship: relationship,
@@ -107,26 +120,20 @@ Deno.serve(async (req) => {
       p_protocol_digest: digest,
       p_email_ciphertext: encrypted?.ciphertext ?? null,
       p_email_nonce: encrypted?.nonce ?? null,
-      p_email_enabled: Boolean(email)
+      p_email_enabled: Boolean(email),
     })
 
     if (error) {
       const mapped = mapRpcError(error.message)
-      if (mapped) return new Response(JSON.stringify({ error: mapped.code }), { status: mapped.status, headers: jsonHeaders })
+      if (mapped) return reply(mapped.status, { error: mapped.code })
       throw error
     }
 
-    // Notificação é best-effort: uma falha de e-mail nunca desfaz ou impede o registro do relato.
     if (reportId) {
       try {
-        const { data: report } = await supabase
-          .from('reports')
-          .select('organization_id,restricted')
-          .eq('id', reportId)
-          .maybeSingle()
-
+        const { data: report } = await service.from('reports').select('organization_id,restricted').eq('id', reportId).maybeSingle()
         if (report?.organization_id) {
-          await supabase.functions.invoke('dispatch-email-notification', {
+          await service.functions.invoke('dispatch-email-notification', {
             body: {
               organizationId: String(report.organization_id),
               eventType: report.restricted ? 'report.restricted.created' : 'report.created',
@@ -135,15 +142,14 @@ Deno.serve(async (req) => {
           })
         }
       } catch {
-        // Sem console: não registrar identificadores ou conteúdo do relato em logs de notificação.
+        // O relato já foi persistido; notificação interna é best-effort.
       }
     }
 
-    return new Response(JSON.stringify({ protocol }), { status: 201, headers: jsonHeaders })
+    return reply(201, { protocol })
   } catch (error) {
-    if (error instanceof InputError) {
-      return new Response(JSON.stringify({ error: error.code }), { status: 400, headers: jsonHeaders })
-    }
-    return new Response(JSON.stringify({ error: 'unexpected_error' }), { status: 500, headers: jsonHeaders })
+    if (error instanceof GatewayAuthError) return reply(error.status, { error: error.code })
+    if (error instanceof InputError) return reply(400, { error: error.code })
+    return reply(500, { error: 'unexpected_error' })
   }
 })

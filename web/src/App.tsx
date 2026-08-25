@@ -1,3 +1,4 @@
+import { ProtectedInternalRoute } from './components/ProtectedInternalRoute'
 import { PublicFooter } from './components/PublicFooter'
 import { PublicHeader } from './components/PublicHeader'
 import { useHashRoute } from './lib/navigation'
@@ -16,8 +17,8 @@ export default function App() {
     switch (route) {
       case 'report': return <ReportPage />
       case 'track': return <TrackPage />
-      case 'operations': return <OperationsPage />
-      case 'admin': return <AdminPage />
+      case 'operations': return <ProtectedInternalRoute area="operations"><OperationsPage /></ProtectedInternalRoute>
+      case 'admin': return <ProtectedInternalRoute area="admin"><AdminPage /></ProtectedInternalRoute>
       case 'privacy': return <PrivacyPage />
       case 'accessibility': return <AccessibilityPage />
       default: return <HomePage />

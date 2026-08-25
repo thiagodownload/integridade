@@ -38,3 +38,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: integridade-web-dist
+          path: web/dist
+          if-no-files-found: error
+          retention-days: 7

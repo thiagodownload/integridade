@@ -56,6 +56,21 @@ function mapRpcError(message: string): { status: number; code: string } | null {
   return null
 }
 
+function base64url(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '')
+}
+
+function generateAttachmentToken(): string {
+  return base64url(crypto.getRandomValues(new Uint8Array(32)))
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)))
+  return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return reply(405, { error: 'method_not_allowed' })
 
@@ -129,10 +144,28 @@ Deno.serve(async (req) => {
       throw error
     }
 
+    let attachmentToken: string | null = null
+
     if (reportId) {
       try {
         const { data: report } = await service.from('reports').select('organization_id,restricted').eq('id', reportId).maybeSingle()
         if (report?.organization_id) {
+          const { data: settings } = await service.from('site_settings')
+            .select('allow_attachments')
+            .eq('organization_id', report.organization_id)
+            .maybeSingle()
+
+          if (settings?.allow_attachments === true) {
+            const candidate = generateAttachmentToken()
+            const tokenDigest = await sha256Hex(candidate)
+            const { error: sessionError } = await service.rpc('create_public_attachment_session_internal', {
+              p_report_id: String(reportId),
+              p_token_digest: tokenDigest,
+              p_expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+            })
+            if (!sessionError) attachmentToken = candidate
+          }
+
           await service.functions.invoke('dispatch-email-notification', {
             body: {
               organizationId: String(report.organization_id),
@@ -142,11 +175,11 @@ Deno.serve(async (req) => {
           })
         }
       } catch {
-        // O relato já foi persistido; notificação interna é best-effort.
+        // O relato já foi persistido. Sessão de anexos e aviso interno são best-effort.
       }
     }
 
-    return reply(201, { protocol })
+    return reply(201, attachmentToken ? { protocol, attachmentToken } : { protocol })
   } catch (error) {
     if (error instanceof GatewayAuthError) return reply(error.status, { error: error.code })
     if (error instanceof InputError) return reply(400, { error: error.code })

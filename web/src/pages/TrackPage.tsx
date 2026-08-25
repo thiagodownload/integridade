@@ -1,6 +1,5 @@
 import { type FormEvent, useState } from 'react'
 import { ArrowRight, LoaderCircle, MessageSquareText, Search, ShieldCheck } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 
 type TrackResult = {
   found: boolean
@@ -26,6 +25,12 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
 }
 
+function publicError(status: number, code: string) {
+  if (status === 429 || code === 'too_many_requests') return 'Foram feitas muitas consultas recentemente. Aguarde um pouco antes de tentar novamente.'
+  if (code === 'gateway_authentication_failed') return 'O gateway seguro não conseguiu validar esta solicitação.'
+  return 'Não foi possível consultar o protocolo agora. Tente novamente em alguns instantes.'
+}
+
 export function TrackPage() {
   const [protocol, setProtocol] = useState('')
   const [result, setResult] = useState<TrackResult | null>(null)
@@ -37,51 +42,59 @@ export function TrackPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!supabase || !protocol.trim() || loading) return
+    if (!protocol.trim() || loading) return
     setLoading(true)
     setError('')
     setResult(null)
     setReplyFeedback('')
 
-    const { data, error: lookupError } = await supabase.functions.invoke('lookup-report', {
-      body: { protocol: protocol.trim().toUpperCase() },
-    })
+    try {
+      const response = await fetch('/api/public/lookup', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ protocol: protocol.trim().toUpperCase() }),
+      })
+      const parsed = await response.json().catch(() => ({})) as TrackResult & { error?: string }
 
-    if (lookupError) {
-      setError('O acompanhamento público seguro ainda não está disponível neste ambiente. Nenhum andamento fictício é exibido.')
+      if (!response.ok) {
+        setError(publicError(response.status, parsed.error ?? ''))
+        return
+      }
+      if (!parsed?.found) {
+        setError('Não foi possível localizar um relato com esse protocolo. Confira os caracteres e tente novamente.')
+        return
+      }
+      setResult(parsed)
+    } catch {
+      setError('Não foi possível alcançar o canal seguro agora.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const parsed = data as TrackResult
-    if (!parsed?.found) {
-      setError('Não foi possível localizar um relato com esse protocolo. Confira os caracteres e tente novamente.')
-      setLoading(false)
-      return
-    }
-
-    setResult(parsed)
-    setLoading(false)
   }
 
   async function sendReply() {
-    if (!supabase || !result?.found || !replyBody.trim() || replying) return
+    if (!result?.found || !replyBody.trim() || replying) return
     setReplying(true)
     setReplyFeedback('')
 
-    const { error: replyError } = await supabase.functions.invoke('reply-report', {
-      body: { protocol: protocol.trim().toUpperCase(), body: replyBody.trim() },
-    })
-
-    if (replyError) {
-      setReplyFeedback('O envio público de mensagens ainda está protegido pela camada de homologação. Sua mensagem não foi registrada.')
+    try {
+      const response = await fetch('/api/public/reply', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ protocol: protocol.trim().toUpperCase(), body: replyBody.trim() }),
+      })
+      const body = await response.json().catch(() => ({})) as { accepted?: boolean; error?: string }
+      if (!response.ok || body.accepted !== true) {
+        setReplyFeedback(publicError(response.status, body.error ?? ''))
+        return
+      }
+      setReplyBody('')
+      setReplyFeedback('Mensagem recebida pelo canal seguro. Consulte novamente para atualizar o histórico.')
+    } catch {
+      setReplyFeedback('Não foi possível enviar sua mensagem agora.')
+    } finally {
       setReplying(false)
-      return
     }
-
-    setReplyBody('')
-    setReplyFeedback('Mensagem recebida pelo canal seguro. Atualize a consulta para vê-la no histórico.')
-    setReplying(false)
   }
 
   return (
@@ -92,7 +105,7 @@ export function TrackPage() {
         <p>Não é necessário login. Trate o protocolo como uma credencial privada.</p>
       </div>
 
-      <form className="track-card" onSubmit={submit}>
+      <form className="track-card" onSubmit={(event) => void submit(event)}>
         <label className="field"><span>Protocolo</span><div className="input-with-icon"><Search size={18} /><input value={protocol} onChange={(event) => setProtocol(event.target.value.toUpperCase())} placeholder="CI-26-XXXX-XXXX-XXXX-XXXX" autoComplete="off" required /></div></label>
         <button className="button primary" disabled={loading} type="submit">{loading ? <LoaderCircle className="spin" size={18} /> : <>Consultar <ArrowRight size={18} /></>}</button>
       </form>

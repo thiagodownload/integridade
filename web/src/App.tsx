@@ -12,7 +12,10 @@ import { TrackPage } from './pages/TrackPage'
 
 export default function App() {
   if (window.location.pathname === '/auth/ativar') return <ActivateAccountPage />
+  return <HashApplication />
+}
 
+function HashApplication() {
   const route = useHashRoute()
   const internal = route === 'operations' || route === 'admin'
 

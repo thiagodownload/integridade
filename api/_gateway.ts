@@ -43,10 +43,11 @@ export async function proxyPublicFunction(
   res: any,
   functionName: string,
   maxBytes = 64_000,
+  allowedMethods: string[] = ['POST'],
 ) {
   responseHeaders(res)
 
-  if (req.method !== 'POST') {
+  if (!allowedMethods.includes(String(req.method ?? ''))) {
     res.statusCode = 405
     res.end(JSON.stringify({ error: 'method_not_allowed' }))
     return
@@ -61,7 +62,7 @@ export async function proxyPublicFunction(
 
   let body: unknown
   try {
-    body = parsedBody(req)
+    body = req.method === 'GET' ? {} : parsedBody(req)
   } catch {
     res.statusCode = 400
     res.end(JSON.stringify({ error: 'invalid_json' }))

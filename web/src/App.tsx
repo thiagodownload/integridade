@@ -2,6 +2,7 @@ import { ProtectedInternalRoute } from './components/ProtectedInternalRoute'
 import { PublicFooter } from './components/PublicFooter'
 import { PublicHeader } from './components/PublicHeader'
 import { useHashRoute } from './lib/navigation'
+import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { AdminPage } from './pages/AdminPage'
 import { HomePage } from './pages/HomePage'
 import { OperationsPage } from './pages/OperationsPage'
@@ -10,6 +11,8 @@ import { AccessibilityPage, PrivacyPage } from './pages/StaticPages'
 import { TrackPage } from './pages/TrackPage'
 
 export default function App() {
+  if (window.location.pathname === '/auth/ativar') return <ActivateAccountPage />
+
   const route = useHashRoute()
   const internal = route === 'operations' || route === 'admin'
 

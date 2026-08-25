@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false }
     })
 
-    const { error } = await supabase.rpc('create_report_internal', {
+    const { data: reportId, error } = await supabase.rpc('create_report_internal', {
       p_organization_slug: input.organizationSlug,
       p_category_id: categoryId,
       p_relationship: relationship,
@@ -114,6 +114,29 @@ Deno.serve(async (req) => {
       const mapped = mapRpcError(error.message)
       if (mapped) return new Response(JSON.stringify({ error: mapped.code }), { status: mapped.status, headers: jsonHeaders })
       throw error
+    }
+
+    // Notificação é best-effort: uma falha de e-mail nunca desfaz ou impede o registro do relato.
+    if (reportId) {
+      try {
+        const { data: report } = await supabase
+          .from('reports')
+          .select('organization_id,restricted')
+          .eq('id', reportId)
+          .maybeSingle()
+
+        if (report?.organization_id) {
+          await supabase.functions.invoke('dispatch-email-notification', {
+            body: {
+              organizationId: String(report.organization_id),
+              eventType: report.restricted ? 'report.restricted.created' : 'report.created',
+              objectId: String(reportId),
+            },
+          })
+        }
+      } catch {
+        // Sem console: não registrar identificadores ou conteúdo do relato em logs de notificação.
+      }
     }
 
     return new Response(JSON.stringify({ protocol }), { status: 201, headers: jsonHeaders })

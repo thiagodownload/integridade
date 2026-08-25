@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Bell, Building2, Clock3, Mail, Shield, Tags, Users } from 'lucide-react'
 import { CoreAdminSettings } from '../components/CoreAdminSettings'
 import { InternalShell } from '../components/InternalShell'
-import { EmailSettingsPanel, NotificationSettingsPanel, PrivacySettingsPanel } from '../components/RemainingAdminSettings'
+import { PortalEmailSettingsPanel } from '../components/PortalEmailSettings'
+import { NotificationSettingsPanel, PrivacySettingsPanel } from '../components/RemainingAdminSettings'
 import { StaffAccessSettings } from '../components/StaffAccessSettings'
 import { supabaseConfigured } from '../lib/supabase'
 
@@ -36,7 +37,7 @@ export function AdminPage() {
         <span className="connection-dot" />
         <div>
           <strong>{supabaseConfigured ? 'Supabase conectado • MFA/AAL2 obrigatório' : 'Supabase ainda não conectado neste ambiente'}</strong>
-          <p>{supabaseConfigured ? 'Todos os módulos administrativos exibidos abaixo usam persistência real ou configuração governada. Alterações são auditadas no banco.' : 'Preencha apenas URL e publishable key no ambiente. Segredos nunca entram no bundle.'}</p>
+          <p>{supabaseConfigured ? 'Todos os módulos administrativos usam persistência real ou configuração governada. Alterações são auditadas no banco.' : 'Preencha apenas URL e publishable key no ambiente. Segredos nunca entram no bundle.'}</p>
         </div>
       </div>
 
@@ -51,7 +52,7 @@ export function AdminPage() {
       <section className="settings-card">
         {(tab === 'geral' || tab === 'categorias' || tab === 'sla') && <CoreAdminSettings tab={tab} />}
         {tab === 'notificacoes' && <NotificationSettingsPanel />}
-        {tab === 'email' && <EmailSettingsPanel />}
+        {tab === 'email' && <PortalEmailSettingsPanel />}
         {tab === 'acessos' && <StaffAccessSettings />}
         {tab === 'privacidade' && <PrivacySettingsPanel />}
       </section>

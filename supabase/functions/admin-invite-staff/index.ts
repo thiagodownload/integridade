@@ -8,6 +8,7 @@ const allowedRoles = new Set([
   'investigator',
   'auditor',
   'privacy_officer',
+  'executive_viewer',
 ])
 
 const corsHeaders = {
@@ -99,7 +100,6 @@ Deno.serve(async (req) => {
 
     const organizationId = String(profile.organization_id)
 
-    // Falha fechada: não cria nem altera conta Auth se o transporte do portal não estiver pronto.
     try {
       await getPortalEmailConfig(service, organizationId)
     } catch {
@@ -192,7 +192,6 @@ Deno.serve(async (req) => {
       metadata: { role_count: roles.length },
     })
 
-    // Não registrar e-mail, token, papéis ou conteúdo do link em console.
     return reply(201, { ok: true, resent: !isNewAccount })
   } catch {
     return reply(500, { error: 'unexpected_error' })

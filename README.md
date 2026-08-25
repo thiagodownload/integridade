@@ -22,6 +22,16 @@ A evolução do protótipo está em `web/` e já separa os três contextos do pr
 
 Stack atual: React 19.2, TypeScript, Vite 8.1, Lucide React e Supabase JS. A configuração do Supabase usa apenas `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`; chaves privilegiadas e credenciais nunca entram no bundle do navegador.
 
+### Implantação web
+
+O frontend está publicado na Vercel e o domínio institucional configurado é:
+
+`https://integridade.mundialatacadista.com.br`
+
+A publicação de produção acompanha a branch `main`. O `vercel.json` na raiz do repositório define instalação, build, diretório de saída e rewrites para a SPA.
+
+> A publicação do frontend não significa que o fluxo público de relatos esteja liberado para uso real. Os endpoints anônimos permanecem sujeitos ao hardening, aos segredos criptográficos e ao privacy gateway previstos para produção.
+
 Para executar localmente:
 
 ```bash

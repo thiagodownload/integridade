@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { LoaderCircle, LockKeyhole, ShieldAlert } from 'lucide-react'
 import { StaffLoginPage } from '../pages/StaffLoginPage'
+import { MfaGate } from './MfaGate'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 
 type InternalArea = 'operations' | 'admin'
-type GateStatus = 'loading' | 'signed_out' | 'denied' | 'ready'
+type GateStatus = 'loading' | 'signed_out' | 'mfa' | 'denied' | 'ready'
 
 interface ProtectedInternalRouteProps {
   area: InternalArea
@@ -21,6 +22,12 @@ function canAccess(area: InternalArea, roles: string[]) {
 export function ProtectedInternalRoute({ area, children }: ProtectedInternalRouteProps) {
   const [status, setStatus] = useState<GateStatus>('loading')
   const [message, setMessage] = useState('')
+  const [validationNonce, setValidationNonce] = useState(0)
+
+  const handleMfaVerified = useCallback(() => {
+    setStatus('loading')
+    setValidationNonce((value) => value + 1)
+  }, [])
 
   useEffect(() => {
     if (!supabaseConfigured || !supabase) {
@@ -37,6 +44,20 @@ export function ProtectedInternalRoute({ area, children }: ProtectedInternalRout
 
       if (sessionError || !sessionData.session) {
         setStatus('signed_out')
+        return
+      }
+
+      const aalResult = await client.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (!active) return
+
+      if (aalResult.error) {
+        setMessage('Não foi possível validar o nível de autenticação multifator da sessão.')
+        setStatus('denied')
+        return
+      }
+
+      if (aalResult.data.currentLevel !== 'aal2') {
+        setStatus('mfa')
         return
       }
 
@@ -75,17 +96,18 @@ export function ProtectedInternalRoute({ area, children }: ProtectedInternalRout
       active = false
       authListener.subscription.unsubscribe()
     }
-  }, [area])
+  }, [area, validationNonce])
 
   if (!supabaseConfigured || !supabase || status === 'signed_out') return <StaffLoginPage />
+  if (status === 'mfa') return <MfaGate onVerified={handleMfaVerified} />
 
   if (status === 'loading') {
     return (
       <main className="auth-page">
         <div className="auth-state-card" role="status" aria-live="polite">
           <LoaderCircle className="spin" size={26} />
-          <strong>Validando sessão e permissões</strong>
-          <span>O acesso é conferido no Supabase antes de abrir a área interna.</span>
+          <strong>Validando sessão, MFA e permissões</strong>
+          <span>A área interna só é liberada para uma sessão AAL2 com papel autorizado.</span>
         </div>
       </main>
     )

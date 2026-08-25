@@ -12,7 +12,7 @@ interface ProtectedInternalRouteProps {
   children: ReactNode
 }
 
-const operationsRoles = new Set(['compliance_manager', 'investigator', 'privacy_officer'])
+const operationsRoles = new Set(['compliance_manager', 'investigator', 'privacy_officer', 'executive_viewer'])
 
 function canAccess(area: InternalArea, roles: string[]) {
   if (area === 'admin') return roles.includes('platform_admin')

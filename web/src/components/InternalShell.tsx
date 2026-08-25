@@ -18,6 +18,7 @@ const roleLabels: Record<string, string> = {
 export function InternalShell({ active, children }: InternalShellProps) {
   const [email, setEmail] = useState('Usuário autorizado')
   const [roles, setRoles] = useState<string[]>([])
+  const [mfaActive, setMfaActive] = useState(false)
 
   useEffect(() => {
     if (!supabase) return
@@ -31,9 +32,15 @@ export function InternalShell({ active, children }: InternalShellProps) {
       if (!activeEffect || !session) return
 
       setEmail(session.user.email || 'Usuário autorizado')
-      const { data: roleRows } = await client.from('staff_roles').select('role').eq('user_id', session.user.id)
+
+      const [roleResult, aalResult] = await Promise.all([
+        client.from('staff_roles').select('role').eq('user_id', session.user.id),
+        client.auth.mfa.getAuthenticatorAssuranceLevel(),
+      ])
+
       if (!activeEffect) return
-      setRoles((roleRows ?? []).map((row) => String(row.role)))
+      setRoles((roleResult.data ?? []).map((row) => String(row.role)))
+      setMfaActive(!aalResult.error && aalResult.data.currentLevel === 'aal2')
     }
 
     void loadIdentity()
@@ -70,7 +77,11 @@ export function InternalShell({ active, children }: InternalShellProps) {
         </nav>
         <div className="internal-user">
           <span className="avatar">{initials}</span>
-          <div><strong title={email}>{email}</strong><small>{primaryRole}</small></div>
+          <div>
+            <strong title={email}>{email}</strong>
+            <small>{primaryRole}</small>
+            {mfaActive && <small className="internal-mfa-badge"><ShieldCheck size={12} /> MFA ativo</small>}
+          </div>
           <button type="button" aria-label="Sair" title="Sair" onClick={handleSignOut}><LogOut size={17} /></button>
         </div>
       </aside>

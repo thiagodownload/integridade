@@ -1,6 +1,9 @@
 import { createHmac } from 'node:crypto'
+import { getVercelOidcToken } from '@vercel/oidc'
 
 const SUPABASE_FUNCTIONS_BASE = 'https://zsxfwcbqbcvuvtcopspt.supabase.co/functions/v1'
+const VERCEL_PROJECT = 'canal-integridade'
+const VERCEL_TEAM = 'thiagodownload100-9875'
 
 function firstHeader(value: unknown): string {
   if (Array.isArray(value)) return String(value[0] ?? '')
@@ -14,8 +17,19 @@ function clientIp(req: any): string {
   return real.trim() || 'unknown'
 }
 
-function oidcToken(): string {
-  return process.env.VERCEL_OIDC_TOKEN ?? ''
+async function oidcToken(): Promise<string> {
+  const environmentToken = process.env.VERCEL_OIDC_TOKEN ?? ''
+  if (environmentToken) return environmentToken
+
+  try {
+    return await getVercelOidcToken({
+      project: VERCEL_PROJECT,
+      team: VERCEL_TEAM,
+      expirationBufferMs: 30_000,
+    })
+  } catch {
+    return ''
+  }
 }
 
 function ipDigest(req: any, token: string): string {
@@ -53,7 +67,7 @@ export async function proxyPublicFunction(
     return
   }
 
-  const token = oidcToken()
+  const token = await oidcToken()
   if (!token) {
     res.statusCode = 503
     res.end(JSON.stringify({ error: 'gateway_identity_unavailable' }))

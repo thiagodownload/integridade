@@ -1,7 +1,7 @@
 import nodemailer from 'npm:nodemailer@^9.0.0'
 
 type ServiceClient = {
-  rpc: (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: { message?: string } | null }>
+  rpc: (name: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message?: string } | null }>
 }
 
 export type PortalEmailConfig = {

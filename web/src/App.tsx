@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react'
 import { ProtectedInternalRoute } from './components/ProtectedInternalRoute'
 import { PublicFooter } from './components/PublicFooter'
 import { PublicHeader } from './components/PublicHeader'
 import { useHashRoute } from './lib/navigation'
+import { initialAuthFlow, supabase } from './lib/supabase'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { AdminPage } from './pages/AdminPage'
 import { HomePage } from './pages/HomePage'
@@ -10,8 +12,28 @@ import { ReportPage } from './pages/ReportPage'
 import { AccessibilityPage, PrivacyPage } from './pages/StaticPages'
 import { TrackPage } from './pages/TrackPage'
 
+const authFlowsThatRequirePassword = new Set(['recovery', 'invite'])
+
 export default function App() {
-  if (window.location.pathname === '/auth/ativar') return <ActivateAccountPage />
+  const [activationFlow, setActivationFlow] = useState(() => (
+    window.location.pathname === '/auth/ativar'
+    || Boolean(initialAuthFlow && authFlowsThatRequirePassword.has(initialAuthFlow))
+  ))
+
+  useEffect(() => {
+    if (!supabase) return
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event !== 'PASSWORD_RECOVERY') return
+
+      window.history.replaceState({}, '', '/auth/ativar')
+      setActivationFlow(true)
+    })
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
+  if (activationFlow) return <ActivateAccountPage />
   return <HashApplication />
 }
 

@@ -40,12 +40,12 @@ function normalizeEventType(value: string) {
 
 function localizedStatus(value: unknown) {
   const key = String(value ?? '').trim()
-  return statusLabels[key] ?? key || 'Não informado'
+  return (statusLabels[key] ?? key) || 'Não informado'
 }
 
 function localizedPriority(value: unknown) {
   const key = String(value ?? '').trim()
-  return priorityLabels[key] ?? key || 'Não informada'
+  return (priorityLabels[key] ?? key) || 'Não informada'
 }
 
 function eventLabel(event: ActivityEvent) {

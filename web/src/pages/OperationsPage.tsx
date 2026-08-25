@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Clock3, Inbox, LoaderCircle, RefreshCw, Save, ShieldAlert, TrendingUp, Users } from 'lucide-react'
+import { CaseActivityPanel } from '../components/CaseActivityPanel'
 import { InternalShell } from '../components/InternalShell'
 import { MetricCard } from '../components/MetricCard'
 import { supabase } from '../lib/supabase'
@@ -290,6 +291,9 @@ export function OperationsPage() {
 
   const canManageTeam = detail ? (detail.restricted ? roles.includes('privacy_officer') : roles.includes('compliance_manager')) : false
   const canChangeStatus = detail ? (canManageTeam || detail.principal?.userId === currentUserId) : false
+  const isCollaborator = detail ? detail.collaborators.some((person) => person.userId === currentUserId) : false
+  const canAddNote = Boolean(detail && (canManageTeam || detail.principal?.userId === currentUserId || isCollaborator))
+  const canMessageReporter = Boolean(detail && (canManageTeam || detail.principal?.userId === currentUserId))
 
   return (
     <InternalShell active="operations">
@@ -382,6 +386,8 @@ export function OperationsPage() {
                   </article>
                 </aside>
               </div>
+
+              <CaseActivityPanel reportId={detail.id} canAddNote={canAddNote} canMessageReporter={canMessageReporter} />
             </>}
       </section>}
     </InternalShell>

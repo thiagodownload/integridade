@@ -101,7 +101,7 @@ export function ProtectedInternalRoute({ area, children }: ProtectedInternalRout
           <div className="auth-state-actions">
             <a className="button secondary" href="#/"><LockKeyhole size={17} /> Voltar ao portal</a>
             <button className="button primary" type="button" onClick={async () => {
-              await supabase.auth.signOut()
+              await supabase?.auth.signOut()
               window.location.hash = '/'
             }}>Sair da conta</button>
           </div>

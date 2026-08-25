@@ -13,6 +13,7 @@ const roleLabels: Record<string, string> = {
   investigator: 'Investigador',
   auditor: 'Auditor',
   privacy_officer: 'Privacidade / triagem restrita',
+  executive_viewer: 'Diretoria / Acompanhamento Executivo',
 }
 
 export function InternalShell({ active, children }: InternalShellProps) {

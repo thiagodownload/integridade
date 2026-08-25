@@ -6,6 +6,7 @@ import './auth.css'
 import './mfa.css'
 import './admin.css'
 import './operations.css'
+import './case-activity.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

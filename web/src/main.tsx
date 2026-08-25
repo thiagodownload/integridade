@@ -8,6 +8,7 @@ import './admin.css'
 import './operations.css'
 import './case-activity.css'
 import './track-messages.css'
+import './attachments.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

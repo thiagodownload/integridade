@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, LoaderCircle, LockKeyhole, Paperclip, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, LoaderCircle, LockKeyhole, Paperclip, ShieldCheck, Trash2 } from 'lucide-react'
 
 type PublicCategory = {
   id: string
@@ -18,6 +18,17 @@ type PublicConfig = {
   categories: PublicCategory[]
 }
 
+type AttachmentState = 'idle' | 'uploading' | 'done'
+
+type AttachmentResult = {
+  name: string
+  ok: boolean
+}
+
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024
+const MAX_ATTACHMENTS = 5
+const ACCEPTED_ATTACHMENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 function publicErrorMessage(status: number, code: string) {
   if (status === 429 || code === 'too_many_requests') return 'Foram feitas muitas tentativas recentemente. Aguarde um pouco antes de enviar outro relato.'
   if (code === 'anonymous_reporting_disabled') return 'O envio anônimo está temporariamente indisponível para esta organização.'
@@ -26,6 +37,13 @@ function publicErrorMessage(status: number, code: string) {
   if (code === 'invalid_description') return 'Revise a descrição. Ela precisa ter pelo menos 20 caracteres.'
   if (code === 'gateway_authentication_failed') return 'O canal seguro não conseguiu validar o gateway. Nenhum relato foi registrado.'
   return 'Não foi possível registrar o relato agora. Nenhum protocolo foi gerado. Tente novamente em alguns instantes.'
+}
+
+function attachmentError(file: File): string | null {
+  if (!ACCEPTED_ATTACHMENT_TYPES.has(file.type)) return `${file.name}: formato não permitido. Use JPEG, PNG ou WebP.`
+  if (file.size < 1) return `${file.name}: o arquivo está vazio.`
+  if (file.size > MAX_ATTACHMENT_BYTES) return `${file.name}: o limite é 3 MB por arquivo.`
+  return null
 }
 
 export function ReportPage() {
@@ -44,6 +62,9 @@ export function ReportPage() {
   const [notificationEmail, setNotificationEmail] = useState('')
   const [goodFaith, setGoodFaith] = useState(false)
   const [website, setWebsite] = useState('')
+  const [attachments, setAttachments] = useState<File[]>([])
+  const [attachmentState, setAttachmentState] = useState<AttachmentState>('idle')
+  const [attachmentResults, setAttachmentResults] = useState<AttachmentResult[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -65,6 +86,49 @@ export function ReportPage() {
       })
     return () => { active = false }
   }, [])
+
+  function chooseAttachments(files: FileList | null) {
+    setError('')
+    if (!files) return
+    const selected = Array.from(files)
+    if (selected.length > MAX_ATTACHMENTS) {
+      setError(`Selecione no máximo ${MAX_ATTACHMENTS} arquivos.`)
+      return
+    }
+    for (const file of selected) {
+      const validation = attachmentError(file)
+      if (validation) {
+        setError(validation)
+        return
+      }
+    }
+    setAttachments(selected)
+  }
+
+  async function uploadAttachments(token: string, files: File[]) {
+    setAttachmentState('uploading')
+    const results: AttachmentResult[] = []
+
+    for (const file of files) {
+      try {
+        const response = await fetch('/api/public/attachment', {
+          method: 'POST',
+          headers: {
+            'content-type': file.type || 'application/octet-stream',
+            'x-attachment-token': token,
+            'x-file-name': encodeURIComponent(file.name),
+          },
+          body: file,
+        })
+        results.push({ name: file.name, ok: response.ok })
+      } catch {
+        results.push({ name: file.name, ok: false })
+      }
+      setAttachmentResults([...results])
+    }
+
+    setAttachmentState('done')
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -109,13 +173,21 @@ export function ReportPage() {
         }),
       })
 
-      const body = await response.json().catch(() => ({})) as { protocol?: unknown; error?: unknown }
+      const body = await response.json().catch(() => ({})) as { protocol?: unknown; attachmentToken?: unknown; error?: unknown }
       if (!response.ok || typeof body.protocol !== 'string') {
         setError(publicErrorMessage(response.status, typeof body.error === 'string' ? body.error : ''))
         return
       }
 
       setProtocol(body.protocol)
+      if (attachments.length > 0) {
+        if (typeof body.attachmentToken === 'string') {
+          void uploadAttachments(body.attachmentToken, attachments)
+        } else {
+          setAttachmentResults(attachments.map((file) => ({ name: file.name, ok: false })))
+          setAttachmentState('done')
+        }
+      }
     } catch {
       setError('Não foi possível alcançar o canal seguro. Nenhum relato foi registrado.')
     } finally {
@@ -124,6 +196,8 @@ export function ReportPage() {
   }
 
   if (protocol) {
+    const uploaded = attachmentResults.filter((item) => item.ok).length
+    const failed = attachmentResults.filter((item) => !item.ok).length
     return (
       <section className="narrow-page section-shell success-page">
         <div className="success-icon"><Check size={30} /></div>
@@ -131,6 +205,15 @@ export function ReportPage() {
         <h1>Guarde seu protocolo em local seguro.</h1>
         <p>Ele é a chave para acompanhar atualizações e responder à equipe sem criar uma conta.</p>
         <div className="protocol-card"><small>Seu protocolo</small><strong>{protocol}</strong></div>
+
+        {attachments.length > 0 && <div className="attachment-submit-status" role="status" aria-live="polite">
+          {attachmentState === 'uploading'
+            ? <><LoaderCircle className="spin" size={18} /><div><strong>Processando anexos</strong><span>{attachmentResults.length} de {attachments.length} processados. O relato já está salvo.</span></div></>
+            : attachmentState === 'done'
+              ? <><Paperclip size={18} /><div><strong>{failed === 0 ? 'Anexos incluídos com segurança' : 'Relato salvo; alguns anexos não foram incluídos'}</strong><span>{uploaded} de {attachments.length} anexos sanitizados e vinculados ao relato{failed > 0 ? `. ${failed} falharam e não foram armazenados como anexos disponíveis.` : '.'}</span></div></>
+              : null}
+        </div>}
+
         <div className="hero-actions centered">
           <button className="button primary" type="button" onClick={() => navigator.clipboard?.writeText(protocol)}>Copiar protocolo</button>
           <a className="button secondary" href="#/acompanhar">Acompanhar agora</a>
@@ -190,9 +273,18 @@ export function ReportPage() {
           {step === 3 && (
             <fieldset>
               <legend>Há evidências ou documentos?</legend>
-              <p className="field-help">Anexos permanecem desativados até a implantação da quarentena e verificação segura dos arquivos.</p>
-              <label className="upload-zone"><Paperclip size={24} /><strong>Adicionar arquivos</strong><span>Indisponível nesta fase de validação.</span><input type="file" multiple disabled /></label>
-              <div className="warning-note"><AlertTriangle size={18} /><p>Não envie documentos por outro canal para contornar esta limitação. O fluxo de anexos será liberado somente com tratamento de metadados e verificação de segurança.</p></div>
+              {config?.allowAttachments
+                ? <>
+                    <p className="field-help">Nesta primeira versão são aceitas imagens JPEG, PNG ou WebP, até 3 MB cada e no máximo 5 arquivos. A cópia usada pela equipe é reprocessada sem metadados; o original fica em quarentena privada.</p>
+                    <label className="upload-zone"><Paperclip size={24} /><strong>Adicionar imagens</strong><span>JPEG, PNG ou WebP • até 3 MB • máximo de 5</span><input accept="image/jpeg,image/png,image/webp" type="file" multiple onChange={(event) => chooseAttachments(event.target.files)} /></label>
+                    {attachments.length > 0 && <div className="selected-attachments">{attachments.map((file, index) => <div className="selected-attachment" key={`${file.name}-${file.size}-${index}`}><div><strong>{file.name}</strong><small>{Math.max(1, Math.round(file.size / 1024))} KB</small></div><button aria-label={`Remover ${file.name}`} title="Remover" type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={16} /></button></div>)}</div>}
+                    <div className="privacy-note"><ShieldCheck size={18} /><p>A equipe não recebe acesso direto ao arquivo original. O portal disponibiliza apenas a imagem sanitizada e registra o hash do original para integridade.</p></div>
+                  </>
+                : <>
+                    <p className="field-help">Anexos permanecem desativados até a implantação completa da quarentena e verificação segura dos arquivos.</p>
+                    <label className="upload-zone"><Paperclip size={24} /><strong>Adicionar arquivos</strong><span>Indisponível nesta fase de validação.</span><input type="file" multiple disabled /></label>
+                    <div className="warning-note"><AlertTriangle size={18} /><p>Não envie documentos por outro canal para contornar esta limitação.</p></div>
+                  </>}
             </fieldset>
           )}
 

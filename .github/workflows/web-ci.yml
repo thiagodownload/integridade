@@ -5,10 +5,14 @@ on:
     branches: [main]
     paths:
       - 'web/**'
+      - 'api/**'
+      - 'vercel.json'
       - '.github/workflows/web-ci.yml'
   pull_request:
     paths:
       - 'web/**'
+      - 'api/**'
+      - 'vercel.json'
       - '.github/workflows/web-ci.yml'
 
 permissions:
@@ -46,3 +50,28 @@ jobs:
           path: web/dist
           if-no-files-found: error
           retention-days: 7
+
+  production-smoke:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aguardar deployment e validar privacy gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://integridade.mundialatacadista.com.br/api/public/config'
+          for attempt in $(seq 1 24); do
+            body_file="$(mktemp)"
+            status="$(curl --silent --show-error --location --max-time 15 --output "$body_file" --write-out '%{http_code}' "$url" || true)"
+            body="$(cat "$body_file")"
+            rm -f "$body_file"
+            if [ "$status" = '200' ] && echo "$body" | grep -q '"organizationSlug":"integridade"'; then
+              echo 'Privacy gateway respondeu corretamente.'
+              exit 0
+            fi
+            echo "Tentativa $attempt/24: HTTP ${status:-erro}. Aguardando deployment..."
+            sleep 10
+          done
+          echo 'Privacy gateway não respondeu com a configuração esperada.' >&2
+          exit 1

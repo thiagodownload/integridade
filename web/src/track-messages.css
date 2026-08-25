@@ -1,0 +1,8 @@
+.public-message-history { display: grid; gap: 10px; padding: 4px 0 20px; border-top: 1px solid #e8edf3; }
+.public-message { max-width: 82%; padding: 12px 13px; border: 1px solid var(--line); border-radius: 12px; background: #f7f9fc; }
+.public-message.staff, .public-message.system { margin-right: auto; background: #f2f7ff; border-color: #d9e7ff; }
+.public-message.reporter { margin-left: auto; background: #eef8f4; border-color: #cee9df; }
+.public-message strong { color: var(--navy); font-size: .78rem; }
+.public-message p { margin: 6px 0; color: #465870; font-size: .82rem; line-height: 1.55; white-space: pre-wrap; }
+.public-message small { color: #8794a6; font-size: .68rem; }
+@media (max-width: 620px) { .public-message { max-width: 94%; } }

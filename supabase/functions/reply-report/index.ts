@@ -45,12 +45,15 @@ Deno.serve(async (req) => {
     if (messageId) {
       const { data: reportId } = await service.rpc('lookup_report_id_internal', { p_protocol_digest: digest })
       if (reportId) {
-        try {
-          await service.functions.invoke('dispatch-email-notification', {
-            body: { organizationId: undefined, eventType: 'report.message.created', objectId: String(reportId) },
-          })
-        } catch {
-          // A mensagem já foi persistida; notificação é best-effort.
+        const { data: report } = await service.from('reports').select('organization_id').eq('id', reportId).maybeSingle()
+        if (report?.organization_id) {
+          try {
+            await service.functions.invoke('dispatch-email-notification', {
+              body: { organizationId: String(report.organization_id), eventType: 'report.message.created', objectId: String(reportId) },
+            })
+          } catch {
+            // A mensagem já foi persistida; notificação é best-effort.
+          }
         }
       }
     }

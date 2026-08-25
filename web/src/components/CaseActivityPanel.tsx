@@ -8,6 +8,24 @@ type ActivityEvent = { id: number; eventType: string; publicSummary: string | nu
 type ActivityMessage = { id: string; authorType: 'reporter' | 'staff' | 'system'; authorName: string; visibility: MessageVisibility; body: string; createdAt: string }
 type Activity = { events: ActivityEvent[]; messages: ActivityMessage[] }
 
+const statusLabels: Record<string, string> = {
+  new: 'Novo',
+  triage: 'Em triagem',
+  investigating: 'Em investigação',
+  waiting_reporter: 'Aguardando denunciante',
+  waiting_internal: 'Aguardando interno',
+  resolved: 'Concluído',
+  closed: 'Encerrado',
+  dismissed: 'Descartado',
+}
+
+const priorityLabels: Record<string, string> = {
+  low: 'Baixa',
+  medium: 'Média',
+  high: 'Alta',
+  critical: 'Crítica',
+}
+
 function formatDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Data indisponível'
@@ -16,12 +34,28 @@ function formatDate(value: string) {
 
 function textList(value: unknown) { return Array.isArray(value) ? value.map(String).filter(Boolean).join(', ') : '' }
 
+function normalizeEventType(value: string) {
+  return value.trim().toLowerCase().replace(/[\s-]+/g, '_')
+}
+
+function localizedStatus(value: unknown) {
+  const key = String(value ?? '').trim()
+  return statusLabels[key] ?? key || 'Não informado'
+}
+
+function localizedPriority(value: unknown) {
+  const key = String(value ?? '').trim()
+  return priorityLabels[key] ?? key || 'Não informada'
+}
+
 function eventLabel(event: ActivityEvent) {
   const meta = event.internalMetadata ?? {}
-  switch (event.eventType) {
+  const eventType = normalizeEventType(event.eventType)
+
+  switch (eventType) {
     case 'report_received': return { title: 'Relato recebido', detail: event.publicSummary || 'O relato foi registrado.' }
-    case 'status_changed': return { title: 'Status alterado', detail: event.publicSummary || `Status atualizado de ${String(meta.before ?? '')} para ${String(meta.after ?? '')}.` }
-    case 'priority_changed': return { title: 'Prioridade alterada', detail: `Prioridade atualizada de ${String(meta.before ?? '')} para ${String(meta.after ?? '')}.` }
+    case 'status_changed': return { title: 'Status alterado', detail: event.publicSummary || `Status atualizado de ${localizedStatus(meta.before)} para ${localizedStatus(meta.after)}.` }
+    case 'priority_changed': return { title: 'Prioridade alterada', detail: `Prioridade atualizada de ${localizedPriority(meta.before)} para ${localizedPriority(meta.after)}.` }
     case 'principal_assigned': return { title: 'Responsável principal atribuído', detail: `${String(meta.displayName ?? 'Usuário')} passou a responder pelo caso.` }
     case 'principal_revoked': return { title: 'Responsável principal removido', detail: `${String(meta.displayName ?? 'Usuário')} deixou de ser o responsável principal.` }
     case 'collaborator_added': return { title: 'Colaborador adicionado', detail: `${String(meta.displayName ?? 'Usuário')} foi adicionado à equipe do caso.` }
@@ -33,11 +67,12 @@ function eventLabel(event: ActivityEvent) {
     case 'staff_message_sent': return { title: 'Mensagem enviada ao denunciante', detail: 'A equipe enviou uma atualização pelo canal seguro.' }
     case 'reporter_message_received': return { title: 'Mensagem recebida do denunciante', detail: 'O denunciante enviou uma nova mensagem pelo protocolo.' }
     case 'collaborators_changed': {
-      const added = textList(meta.addedNames); const removed = textList(meta.removedNames)
+      const added = textList(meta.addedNames)
+      const removed = textList(meta.removedNames)
       return { title: 'Equipe atualizada', detail: [added ? `Adicionados: ${added}.` : '', removed ? `Removidos: ${removed}.` : ''].filter(Boolean).join(' ') || 'A equipe do caso foi atualizada.' }
     }
     case 'principal_changed': return { title: 'Responsável principal alterado', detail: `${String(meta.beforeName ?? 'Não atribuído')} → ${String(meta.afterName ?? 'Não atribuído')}` }
-    default: return { title: event.eventType.replaceAll('_', ' '), detail: event.publicSummary || 'Evento interno registrado.' }
+    default: return { title: 'Atualização do caso', detail: event.publicSummary || 'Uma atualização foi registrada no caso.' }
   }
 }
 

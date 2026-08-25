@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Clock3, Inbox, LoaderCircle, RefreshCw, Save, ShieldAlert, TrendingUp, Users } from 'lucide-react'
+import { AlertCircle, Clock3, Eye, Inbox, LoaderCircle, RefreshCw, Save, ShieldAlert, TrendingUp, Users } from 'lucide-react'
 import { CaseActivityPanel } from '../components/CaseActivityPanel'
 import { InternalShell } from '../components/InternalShell'
 import { MetricCard } from '../components/MetricCard'
@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 
 type ReportStatus = 'new' | 'triage' | 'investigating' | 'waiting_reporter' | 'waiting_internal' | 'resolved' | 'closed' | 'dismissed'
 type ReportPriority = 'low' | 'medium' | 'high' | 'critical'
-type StaffRole = 'platform_admin' | 'compliance_manager' | 'investigator' | 'auditor' | 'privacy_officer'
+type StaffRole = 'platform_admin' | 'compliance_manager' | 'investigator' | 'auditor' | 'privacy_officer' | 'executive_viewer'
 type SlaState = 'paused' | 'completed' | 'unconfigured' | 'overdue' | 'critical' | 'warning' | 'ok'
 
 type QueueCase = {
@@ -58,6 +58,7 @@ type CaseDetail = {
   slaPauseReason: string | null
   principal: AssignmentPerson | null
   collaborators: AssignmentPerson[]
+  observers: AssignmentPerson[]
 }
 
 type Candidate = {
@@ -87,6 +88,15 @@ const priorityOptions: Array<{ value: ReportPriority; label: string }> = [
 
 const statusLabel = Object.fromEntries(statusOptions.map((item) => [item.value, item.label])) as Record<ReportStatus, string>
 const priorityLabel = Object.fromEntries(priorityOptions.map((item) => [item.value, item.label])) as Record<ReportPriority, string>
+
+function roleName(role: StaffRole) {
+  if (role === 'investigator') return 'Investigador'
+  if (role === 'compliance_manager') return 'Gestor de Compliance'
+  if (role === 'privacy_officer') return 'Privacy Officer'
+  if (role === 'executive_viewer') return 'Diretoria / Acompanhamento Executivo'
+  if (role === 'platform_admin') return 'Administrador da plataforma'
+  return 'Auditor'
+}
 
 function caseReference(id: string) {
   return `CASO-${id.replaceAll('-', '').slice(0, 8).toUpperCase()}`
@@ -131,6 +141,7 @@ export function OperationsPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [principalDraft, setPrincipalDraft] = useState('')
   const [collaboratorDraft, setCollaboratorDraft] = useState<string[]>([])
+  const [observerDraft, setObserverDraft] = useState<string[]>([])
   const [statusDraft, setStatusDraft] = useState<ReportStatus>('new')
   const [priorityDraft, setPriorityDraft] = useState<ReportPriority>('medium')
   const [savingTeam, setSavingTeam] = useState(false)
@@ -202,6 +213,7 @@ export function OperationsPage() {
     setDetail(parsed)
     setPrincipalDraft(parsed.principal?.userId ?? '')
     setCollaboratorDraft((parsed.collaborators ?? []).map((person) => person.userId))
+    setObserverDraft((parsed.observers ?? []).map((person) => person.userId))
     setStatusDraft(parsed.status)
     setPriorityDraft(parsed.priority)
 
@@ -233,9 +245,10 @@ export function OperationsPage() {
       p_report_id: detail.id,
       p_principal_user_id: principalDraft || null,
       p_collaborator_user_ids: collaboratorDraft,
+      p_observer_user_ids: observerDraft,
     })
-    if (error) setFeedback('Não foi possível atualizar a equipe do caso. Confira os papéis selecionados.')
-    else setFeedback('Equipe do caso atualizada e auditada.')
+    if (error) setFeedback('Não foi possível atualizar equipe e observadores do caso. Confira os papéis selecionados.')
+    else setFeedback('Equipe e acessos de acompanhamento atualizados com auditoria.')
     await reloadSelected()
     setSavingTeam(false)
   }
@@ -259,7 +272,20 @@ export function OperationsPage() {
 
   function toggleCollaborator(userId: string) {
     if (userId === principalDraft) return
-    setCollaboratorDraft((current) => current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId])
+    setCollaboratorDraft((current) => {
+      const adding = !current.includes(userId)
+      if (adding) setObserverDraft((observers) => observers.filter((id) => id !== userId))
+      return adding ? [...current, userId] : current.filter((id) => id !== userId)
+    })
+  }
+
+  function toggleObserver(userId: string) {
+    if (userId === principalDraft) return
+    setObserverDraft((current) => {
+      const adding = !current.includes(userId)
+      if (adding) setCollaboratorDraft((collaborators) => collaborators.filter((id) => id !== userId))
+      return adding ? [...current, userId] : current.filter((id) => id !== userId)
+    })
   }
 
   const filteredCases = useMemo(() => {
@@ -292,8 +318,18 @@ export function OperationsPage() {
   const canManageTeam = detail ? (detail.restricted ? roles.includes('privacy_officer') : roles.includes('compliance_manager')) : false
   const canChangeStatus = detail ? (canManageTeam || detail.principal?.userId === currentUserId) : false
   const isCollaborator = detail ? detail.collaborators.some((person) => person.userId === currentUserId) : false
+  const isObserver = detail ? detail.observers.some((person) => person.userId === currentUserId) : false
   const canAddNote = Boolean(detail && (canManageTeam || detail.principal?.userId === currentUserId || isCollaborator))
   const canMessageReporter = Boolean(detail && (canManageTeam || detail.principal?.userId === currentUserId))
+
+  const assigneeCandidates = useMemo(() => {
+    if (!detail) return []
+    return candidates.filter((person) => person.roles.some((role) => detail.restricted
+      ? role === 'privacy_officer' || role === 'investigator'
+      : role === 'compliance_manager' || role === 'investigator'))
+  }, [candidates, detail])
+
+  const observerCandidates = useMemo(() => candidates.filter((person) => person.roles.includes('executive_viewer')), [candidates])
 
   return (
     <InternalShell active="operations">
@@ -324,7 +360,7 @@ export function OperationsPage() {
           {loading
             ? <div className="operations-empty"><LoaderCircle className="spin" size={24} /><strong>Carregando fila real</strong></div>
             : filteredCases.length === 0
-              ? <div className="operations-empty"><Inbox size={28} /><strong>Nenhum caso nesta visão</strong><span>A fila usa dados reais. Se ainda não há relatos autorizados, nada é inventado para preencher a tabela.</span></div>
+              ? <div className="operations-empty"><Inbox size={28} /><strong>Nenhum caso nesta visão</strong><span>A fila usa dados reais. Perfis executivos só recebem casos adicionados explicitamente como Observador.</span></div>
               : <div className="table-scroll">
                   <table>
                     <thead><tr><th>Caso</th><th>Categoria</th><th>Status</th><th>Prioridade</th><th>SLA</th><th>Equipe</th><th /></tr></thead>
@@ -360,7 +396,8 @@ export function OperationsPage() {
                 <div className="case-detail-badges"><span className={`priority-pill ${detail.priority}`}>{priorityLabel[detail.priority]}</span>{detail.restricted && <span className="status danger"><ShieldAlert size={13} /> Restrito</span>}</div>
               </header>
 
-              {detail.restricted && <div className="restricted-callout"><ShieldAlert size={20} /><div><strong>Acesso restrito</strong><span>A abertura deste conteúdo foi registrada na auditoria. A equipe só pode ser alterada por Privacy Officer.</span></div></div>}
+              {detail.restricted && <div className="restricted-callout"><ShieldAlert size={20} /><div><strong>Acesso restrito</strong><span>A abertura deste conteúdo foi registrada na auditoria. A equipe e os observadores só podem ser alterados por Privacy Officer.</span></div></div>}
+              {isObserver && !canManageTeam && <div className="restricted-callout"><Eye size={20} /><div><strong>Acompanhamento executivo somente leitura</strong><span>Você pode consultar o caso e sua timeline, mas não pode alterar andamento, equipe, notas ou comunicação com o denunciante.</span></div></div>}
 
               <div className="case-detail-grid">
                 <div className="case-detail-main">
@@ -375,14 +412,15 @@ export function OperationsPage() {
                     {(canChangeStatus || canManageTeam) && <button className="button primary compact" disabled={savingState} onClick={() => void saveState()} type="button">{savingState ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar andamento</button>}
                   </article>
 
-                  <article className="case-section"><h3><Users size={17} /> Equipe do caso</h3>
+                  <article className="case-section"><h3><Users size={17} /> Equipe e acompanhamento</h3>
                     {canManageTeam
                       ? <>
-                          <label className="field"><span>Responsável principal</span><select value={principalDraft} onChange={(event) => { const value = event.target.value; setPrincipalDraft(value); setCollaboratorDraft((current) => current.filter((id) => id !== value)) }}><option value="">Não atribuído</option>{candidates.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}</option>)}</select></label>
-                          <div className="collaborator-picker"><strong>Colaboradores</strong>{candidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={collaboratorDraft.includes(person.user_id)} onChange={() => toggleCollaborator(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map((role) => role === 'investigator' ? 'Investigador' : role === 'compliance_manager' ? 'Gestor de Compliance' : role === 'privacy_officer' ? 'Privacy Officer' : role).join(' • ')}</small></span></label>)}</div>
-                          <button className="button secondary compact" disabled={savingTeam} onClick={() => void saveTeam()} type="button">{savingTeam ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar equipe</button>
+                          <label className="field"><span>Responsável principal</span><select value={principalDraft} onChange={(event) => { const value = event.target.value; setPrincipalDraft(value); setCollaboratorDraft((current) => current.filter((id) => id !== value)); setObserverDraft((current) => current.filter((id) => id !== value)) }}><option value="">Não atribuído</option>{assigneeCandidates.map((person) => <option key={person.user_id} value={person.user_id}>{person.display_name}</option>)}</select></label>
+                          <div className="collaborator-picker"><strong>Colaboradores</strong>{assigneeCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={collaboratorDraft.includes(person.user_id)} onChange={() => toggleCollaborator(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
+                          <div className="collaborator-picker"><strong>Observadores</strong><small>Somente leitura. Em casos restritos, esta concessão é exclusiva do Privacy Officer.</small>{observerCandidates.filter((person) => person.user_id !== principalDraft).map((person) => <label key={person.user_id}><input checked={observerDraft.includes(person.user_id)} onChange={() => toggleObserver(person.user_id)} type="checkbox" /><span><b>{person.display_name}</b><small>{person.roles.map(roleName).join(' • ')}</small></span></label>)}</div>
+                          <button className="button secondary compact" disabled={savingTeam} onClick={() => void saveTeam()} type="button">{savingTeam ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Salvar equipe e acessos</button>
                         </>
-                      : <div className="team-readonly"><div><small>Principal</small><strong>{detail.principal?.displayName ?? 'Não atribuído'}</strong></div><div><small>Colaboradores</small><strong>{detail.collaborators.length ? detail.collaborators.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div></div>}
+                      : <div className="team-readonly"><div><small>Principal</small><strong>{detail.principal?.displayName ?? 'Não atribuído'}</strong></div><div><small>Colaboradores</small><strong>{detail.collaborators.length ? detail.collaborators.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div><div><small>Observadores</small><strong>{detail.observers.length ? detail.observers.map((person) => person.displayName).join(' • ') : 'Nenhum'}</strong></div></div>}
                   </article>
                 </aside>
               </div>

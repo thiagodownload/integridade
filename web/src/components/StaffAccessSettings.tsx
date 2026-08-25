@@ -34,6 +34,42 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date)
 }
 
+async function functionErrorCode(error: unknown): Promise<{ code: string; accountPrepared: boolean }> {
+  if (!error || typeof error !== 'object' || !('context' in error)) return { code: '', accountPrepared: false }
+  const context = (error as { context?: unknown }).context
+  if (!(context instanceof Response)) return { code: '', accountPrepared: false }
+  try {
+    const body = await context.clone().json() as { error?: unknown; accountPrepared?: unknown }
+    return {
+      code: typeof body.error === 'string' ? body.error : '',
+      accountPrepared: body.accountPrepared === true,
+    }
+  } catch {
+    return { code: '', accountPrepared: false }
+  }
+}
+
+function inviteErrorMessage(code: string, accountPrepared: boolean) {
+  const messages: Record<string, string> = {
+    email_transport_not_configured: 'Configure, habilite e teste o serviço SMTP na aba E-mail antes de enviar convites.',
+    user_already_active: 'Esse e-mail já pertence a uma conta interna ativa. Edite os papéis no diretório em vez de criar outro convite.',
+    activation_link_generation_failed: 'Não foi possível gerar o link seguro de ativação. Nenhum e-mail foi enviado.',
+    staff_provisioning_failed: 'A conta Auth foi localizada ou criada, mas não foi possível aplicar o perfil e os papéis internos.',
+    portal_email_delivery_failed: 'A conta foi preparada, mas o SMTP do portal não conseguiu entregar o e-mail. Corrija ou teste a aba E-mail e envie o convite novamente.',
+    cannot_invite_self: 'Sua própria conta não pode ser convidada por esta tela.',
+    administrator_required: 'Sua sessão não possui permissão administrativa para convidar usuários.',
+    mfa_required: 'A sessão precisa estar em MFA/AAL2 para convidar usuários.',
+    invite_preparation_failed: 'Não foi possível preparar a autorização interna para o convite.',
+    auth_directory_unavailable: 'O diretório de autenticação está temporariamente indisponível.',
+    invalid_email: 'O e-mail informado é inválido.',
+    invalid_display_name: 'O nome de exibição informado é inválido.',
+    invalid_roles: 'Os papéis selecionados são inválidos.',
+  }
+  if (messages[code]) return messages[code]
+  if (accountPrepared) return 'A conta foi preparada, mas a entrega do convite não foi concluída. Verifique o serviço de e-mail e tente novamente.'
+  return 'Não foi possível concluir o convite. Nenhuma credencial deve ser criada manualmente no Supabase; confira a configuração de E-mail e tente novamente.'
+}
+
 export function StaffAccessSettings() {
   const [members, setMembers] = useState<StaffMember[]>([])
   const [currentUserId, setCurrentUserId] = useState('')
@@ -171,7 +207,9 @@ export function StaffAccessSettings() {
     })
 
     if (error) {
-      setFeedback({ type: 'error', text: 'Não foi possível enviar o convite. Verifique se o endereço já possui uma conta Auth neste projeto.' })
+      const details = await functionErrorCode(error)
+      setFeedback({ type: 'error', text: inviteErrorMessage(details.code, details.accountPrepared) })
+      await loadMembers()
       setInviting(false)
       return
     }
@@ -181,7 +219,7 @@ export function StaffAccessSettings() {
     setInviteRoles(['investigator'])
     await loadMembers()
     setInviting(false)
-    setFeedback({ type: 'success', text: 'Convite enviado. O usuário deverá ativar a conta e configurar MFA no primeiro acesso.' })
+    setFeedback({ type: 'success', text: 'Convite enviado pelo serviço de e-mail do portal. O usuário deverá ativar a conta e configurar MFA no primeiro acesso.' })
   }
 
   return <>
@@ -204,7 +242,7 @@ export function StaffAccessSettings() {
     <section className="access-invite-card">
       <div className="access-section-title">
         <span className="access-section-icon"><MailPlus size={19} /></span>
-        <div><strong>Convidar usuário interno</strong><span>O convite expira em 7 dias e usa o fluxo oficial do Supabase Auth.</span></div>
+        <div><strong>Convidar usuário interno</strong><span>O Supabase Auth gera o link seguro e o serviço de e-mail configurado no portal entrega a mensagem.</span></div>
       </div>
       <div className="two-columns">
         <label className="field"><span>Nome de exibição</span><input maxLength={120} placeholder="Nome do colaborador" value={inviteName} onChange={(event) => setInviteName(event.target.value)} /></label>

@@ -5,6 +5,7 @@ export type AppRoute =
   | 'report'
   | 'track'
   | 'operations'
+  | 'notifications'
   | 'admin'
   | 'privacy'
   | 'accessibility'
@@ -14,6 +15,7 @@ const routeMap: Record<string, AppRoute> = {
   '/reportar': 'report',
   '/acompanhar': 'track',
   '/operacoes': 'operations',
+  '/notificacoes': 'notifications',
   '/admin': 'admin',
   '/privacidade': 'privacy',
   '/acessibilidade': 'accessibility',

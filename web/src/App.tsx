@@ -6,6 +6,7 @@ import { useHashRoute } from './lib/navigation'
 import { initialAuthFlow, supabase } from './lib/supabase'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { AdminPage } from './pages/AdminPage'
+import { HelpPage } from './pages/HelpPage'
 import { HomePage } from './pages/HomePage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { OperationsPage } from './pages/OperationsPage'
@@ -40,7 +41,7 @@ export default function App() {
 
 function HashApplication() {
   const route = useHashRoute()
-  const internal = route === 'operations' || route === 'notifications' || route === 'admin'
+  const internal = route === 'operations' || route === 'notifications' || route === 'help' || route === 'admin'
 
   const page = (() => {
     switch (route) {
@@ -48,6 +49,7 @@ function HashApplication() {
       case 'track': return <TrackPage />
       case 'operations': return <ProtectedInternalRoute area="operations"><OperationsPage /></ProtectedInternalRoute>
       case 'notifications': return <ProtectedInternalRoute area="notifications"><NotificationsPage /></ProtectedInternalRoute>
+      case 'help': return <ProtectedInternalRoute area="help"><HelpPage /></ProtectedInternalRoute>
       case 'admin': return <ProtectedInternalRoute area="admin"><AdminPage /></ProtectedInternalRoute>
       case 'privacy': return <PrivacyPage />
       case 'accessibility': return <AccessibilityPage />

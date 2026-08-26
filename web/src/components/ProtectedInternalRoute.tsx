@@ -4,7 +4,7 @@ import { StaffLoginPage } from '../pages/StaffLoginPage'
 import { MfaGate } from './MfaGate'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 
-type InternalArea = 'operations' | 'notifications' | 'admin'
+type InternalArea = 'operations' | 'notifications' | 'help' | 'admin'
 type GateStatus = 'loading' | 'signed_out' | 'mfa' | 'denied' | 'ready'
 
 interface ProtectedInternalRouteProps {
@@ -17,7 +17,7 @@ const internalRoles = new Set(['platform_admin', 'compliance_manager', 'investig
 
 function canAccess(area: InternalArea, roles: string[]) {
   if (area === 'admin') return roles.includes('platform_admin')
-  if (area === 'notifications') return roles.some((role) => internalRoles.has(role))
+  if (area === 'notifications' || area === 'help') return roles.some((role) => internalRoles.has(role))
   return roles.some((role) => operationsRoles.has(role))
 }
 
@@ -83,7 +83,9 @@ export function ProtectedInternalRoute({ area, children }: ProtectedInternalRout
           ? 'Seu perfil não possui permissão de administração da plataforma.'
           : area === 'notifications'
             ? 'Seu perfil não possui acesso à central interna de notificações.'
-            : 'Seu perfil não possui permissão para a fila de atendimento.')
+            : area === 'help'
+              ? 'Seu perfil não possui acesso ao guia interno.'
+              : 'Seu perfil não possui permissão para a fila de atendimento.')
         setStatus('denied')
         return
       }

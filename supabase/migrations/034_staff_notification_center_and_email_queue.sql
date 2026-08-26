@@ -25,15 +25,14 @@ WHERE recipient_reporter = false
   AND sent_at IS NULL
   AND failed_at IS NULL;
 
--- Corrige a regra inicial de relatos restritos e garante os defaults de e-mail.
 UPDATE public.notification_rules
 SET enabled = false
 WHERE event_type = 'report.restricted.created'
   AND channel = 'email'
-  AND destination_role <> 'privacy_officer'::public.app_role;
+  AND destination_role <> 'privacy_officer'::public.staff_role;
 
 INSERT INTO public.notification_rules(organization_id,event_type,channel,destination_role,enabled)
-SELECT o.id,'report.created','email','compliance_manager'::public.app_role,true
+SELECT o.id,'report.created','email','compliance_manager'::public.staff_role,true
 FROM public.organizations o
 WHERE o.slug = 'integridade'
   AND NOT EXISTS (
@@ -41,11 +40,11 @@ WHERE o.slug = 'integridade'
     WHERE n.organization_id=o.id
       AND n.event_type='report.created'
       AND n.channel='email'
-      AND n.destination_role='compliance_manager'::public.app_role
+      AND n.destination_role='compliance_manager'::public.staff_role
   );
 
 INSERT INTO public.notification_rules(organization_id,event_type,channel,destination_role,enabled)
-SELECT o.id,'report.restricted.created','email','privacy_officer'::public.app_role,true
+SELECT o.id,'report.restricted.created','email','privacy_officer'::public.staff_role,true
 FROM public.organizations o
 WHERE o.slug = 'integridade'
   AND NOT EXISTS (
@@ -53,11 +52,11 @@ WHERE o.slug = 'integridade'
     WHERE n.organization_id=o.id
       AND n.event_type='report.restricted.created'
       AND n.channel='email'
-      AND n.destination_role='privacy_officer'::public.app_role
+      AND n.destination_role='privacy_officer'::public.staff_role
   );
 
 INSERT INTO public.notification_rules(organization_id,event_type,channel,destination_role,enabled)
-SELECT o.id,'report.message.created','email','privacy_officer'::public.app_role,true
+SELECT o.id,'report.message.created','email','privacy_officer'::public.staff_role,true
 FROM public.organizations o
 WHERE o.slug = 'integridade'
   AND NOT EXISTS (
@@ -65,10 +64,9 @@ WHERE o.slug = 'integridade'
     WHERE n.organization_id=o.id
       AND n.event_type='report.message.created'
       AND n.channel='email'
-      AND n.destination_role='privacy_officer'::public.app_role
+      AND n.destination_role='privacy_officer'::public.staff_role
   );
 
--- Elimina avisos legados sem destinatario. Eles nunca puderam alimentar badge individual.
 DELETE FROM public.notification_outbox
 WHERE channel = 'in_app'
   AND recipient_user_id IS NULL
@@ -103,11 +101,11 @@ SECURITY DEFINER
 SET search_path=public,pg_temp
 AS $$
 DECLARE
-  v_role public.app_role;
+  v_role public.staff_role;
   v_event_type text;
   v_email_enabled boolean := false;
 BEGIN
-  v_role := CASE WHEN NEW.restricted THEN 'privacy_officer'::public.app_role ELSE 'compliance_manager'::public.app_role END;
+  v_role := CASE WHEN NEW.restricted THEN 'privacy_officer'::public.staff_role ELSE 'compliance_manager'::public.staff_role END;
   v_event_type := CASE WHEN NEW.restricted THEN 'report.restricted.created' ELSE 'report.created' END;
 
   INSERT INTO public.notification_outbox(
@@ -156,7 +154,6 @@ AFTER INSERT ON public.reports
 FOR EACH ROW
 EXECUTE FUNCTION operations_private.queue_new_report_staff_notifications();
 
--- Mantem o trigger existente de atribuicao, agora com notificacao in-app alem do e-mail.
 CREATE OR REPLACE FUNCTION operations_private.queue_assignment_email_notification()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -200,7 +197,6 @@ BEGIN
 END;
 $$;
 
--- Mensagem enviada pelo denunciante: notifica equipe atribuida e gestor autorizado.
 CREATE OR REPLACE FUNCTION operations_private.queue_reporter_message_staff_notifications()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -210,7 +206,7 @@ AS $$
 DECLARE
   v_org_id uuid;
   v_restricted boolean;
-  v_role public.app_role;
+  v_role public.staff_role;
   v_email_enabled boolean := false;
 BEGIN
   IF NEW.author_type::text <> 'reporter' THEN RETURN NEW; END IF;
@@ -221,7 +217,7 @@ BEGIN
   WHERE id=NEW.report_id;
 
   IF v_org_id IS NULL THEN RETURN NEW; END IF;
-  v_role := CASE WHEN v_restricted THEN 'privacy_officer'::public.app_role ELSE 'compliance_manager'::public.app_role END;
+  v_role := CASE WHEN v_restricted THEN 'privacy_officer'::public.staff_role ELSE 'compliance_manager'::public.staff_role END;
 
   WITH recipients AS (
     SELECT a.user_id

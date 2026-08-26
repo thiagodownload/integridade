@@ -21,4 +21,5 @@
 .notification-copy small{font-size:11px;color:#8090a6}
 .notification-unread-label{display:inline-flex;padding:3px 7px;border-radius:999px;background:#e9f1ff;color:#1767e8!important;font-size:10px!important;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .notification-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.internal-user strong{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:760px){.notification-browser-card{align-items:stretch;flex-direction:column}.notification-item{grid-template-columns:10px minmax(0,1fr)}.notification-actions{grid-column:2;justify-content:flex-start}.notification-actions .button{width:100%;justify-content:center}}

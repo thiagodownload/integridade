@@ -9,6 +9,7 @@ import './operations.css'
 import './case-activity.css'
 import './track-messages.css'
 import './attachments.css'
+import './notifications.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

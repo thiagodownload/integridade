@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Bell, Gauge, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { Bell, CircleHelp, Gauge, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InternalShellProps {
-  active: 'operations' | 'notifications' | 'admin'
+  active: 'operations' | 'notifications' | 'help' | 'admin'
   children: ReactNode
 }
 
@@ -147,6 +147,7 @@ export function InternalShell({ active, children }: InternalShellProps) {
         <nav className="internal-nav" aria-label="Área interna">
           <a className={active === 'operations' ? 'active' : ''} href="#/operacoes"><Gauge size={18} /> Operações</a>
           <a className={active === 'notifications' ? 'active' : ''} href="#/notificacoes"><Bell size={18} /> Notificações <span className="nav-count">{unreadCount > 99 ? '99+' : unreadCount}</span></a>
+          <a className={active === 'help' ? 'active' : ''} href="#/como-usar"><CircleHelp size={18} /> Como usar</a>
           {canAdmin && <a className={active === 'admin' ? 'active' : ''} href="#/admin"><Settings size={18} /> Administração</a>}
         </nav>
         <div className="internal-user">

@@ -9,7 +9,7 @@ import { AdminPage } from './pages/AdminPage'
 import { HomePage } from './pages/HomePage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { OperationsPage } from './pages/OperationsPage'
-import { ReportPage } from './pages/ReportPage'
+import { ReportPageV2 } from './pages/ReportPageV2'
 import { AccessibilityPage, PrivacyPage } from './pages/StaticPages'
 import { TrackPage } from './pages/TrackPage'
 
@@ -44,7 +44,7 @@ function HashApplication() {
 
   const page = (() => {
     switch (route) {
-      case 'report': return <ReportPage />
+      case 'report': return <ReportPageV2 />
       case 'track': return <TrackPage />
       case 'operations': return <ProtectedInternalRoute area="operations"><OperationsPage /></ProtectedInternalRoute>
       case 'notifications': return <ProtectedInternalRoute area="notifications"><NotificationsPage /></ProtectedInternalRoute>

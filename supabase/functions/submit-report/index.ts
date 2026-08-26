@@ -148,7 +148,7 @@ Deno.serve(async (req) => {
 
     if (reportId) {
       try {
-        const { data: report } = await service.from('reports').select('organization_id,restricted').eq('id', reportId).maybeSingle()
+        const { data: report } = await service.from('reports').select('organization_id').eq('id', reportId).maybeSingle()
         if (report?.organization_id) {
           const { data: settings } = await service.from('site_settings')
             .select('allow_attachments')
@@ -165,17 +165,9 @@ Deno.serve(async (req) => {
             })
             if (!sessionError) attachmentToken = candidate
           }
-
-          await service.functions.invoke('dispatch-email-notification', {
-            body: {
-              organizationId: String(report.organization_id),
-              eventType: report.restricted ? 'report.restricted.created' : 'report.created',
-              objectId: String(reportId),
-            },
-          })
         }
       } catch {
-        // O relato já foi persistido. Sessão de anexos e aviso interno são best-effort.
+        // O relato já foi persistido. A sessão de anexos é best-effort.
       }
     }
 

@@ -3,8 +3,15 @@ import { Bell, Gauge, LogOut, Settings, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 interface InternalShellProps {
-  active: 'operations' | 'admin'
+  active: 'operations' | 'notifications' | 'admin'
   children: ReactNode
+}
+
+type NotificationRow = {
+  id: number
+  event_type: string
+  payload: Record<string, unknown> | null
+  read_at: string | null
 }
 
 const roleLabels: Record<string, string> = {
@@ -16,16 +23,74 @@ const roleLabels: Record<string, string> = {
   executive_viewer: 'Diretoria / Acompanhamento Executivo',
 }
 
+function browserNotificationText(item: NotificationRow) {
+  if (item.event_type === 'report.created') return { title: 'Novo relato recebido', body: 'Há um novo relato aguardando triagem no Canal de Integridade.' }
+  if (item.event_type === 'report.restricted.created') return { title: 'Novo item restrito recebido', body: 'Há um novo item restrito aguardando tratamento autorizado.' }
+  if (item.event_type === 'report.message.created') return { title: 'Nova mensagem recebida', body: 'Há uma nova mensagem em um relato que você pode acompanhar.' }
+  if (item.event_type === 'report.assignment.granted') {
+    const type = String(item.payload?.assignment_type ?? 'collaborator')
+    if (type === 'principal') return { title: 'Nova responsabilidade', body: 'Você foi definido como responsável principal por um caso.' }
+    if (type === 'observer') return { title: 'Novo acompanhamento', body: 'Você recebeu acesso de acompanhamento a um caso.' }
+    return { title: 'Novo caso atribuído', body: 'Você foi adicionado como colaborador em um caso.' }
+  }
+  return { title: 'Nova atualização', body: 'Há uma nova atualização no Canal de Integridade.' }
+}
+
 export function InternalShell({ active, children }: InternalShellProps) {
   const [email, setEmail] = useState('Usuário autorizado')
   const [roles, setRoles] = useState<string[]>([])
   const [mfaActive, setMfaActive] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (!supabase) return
 
     let activeEffect = true
+    let timer = 0
     const client = supabase
+
+    async function refreshNotifications(userId: string, allowPopup: boolean) {
+      const [countResult, listResult] = await Promise.all([
+        client.rpc('staff_unread_notification_count'),
+        client.rpc('staff_list_notifications', { p_limit: 20 }),
+      ])
+      if (!activeEffect || countResult.error || listResult.error) return
+
+      setUnreadCount(Number(countResult.data ?? 0))
+      const rows = (listResult.data ?? []).map((row: Record<string, unknown>) => ({
+        id: Number(row.id),
+        event_type: String(row.event_type ?? ''),
+        payload: row.payload && typeof row.payload === 'object' ? row.payload as Record<string, unknown> : null,
+        read_at: row.read_at == null ? null : String(row.read_at),
+      })) as NotificationRow[]
+
+      const key = `integridade:last-notification:${userId}`
+      const highestId = rows.reduce((max, row) => Math.max(max, row.id), 0)
+      const previous = Number(window.localStorage.getItem(key) ?? 0)
+
+      if (previous === 0) {
+        if (highestId > 0) window.localStorage.setItem(key, String(highestId))
+        return
+      }
+
+      const newUnread = rows
+        .filter((row) => row.read_at == null && row.id > previous)
+        .sort((a, b) => a.id - b.id)
+
+      if (allowPopup && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        for (const item of newUnread) {
+          const text = browserNotificationText(item)
+          const notification = new Notification(text.title, { body: text.body, tag: `integridade-${item.id}` })
+          notification.onclick = () => {
+            window.focus()
+            window.location.hash = '/notificacoes'
+            notification.close()
+          }
+        }
+      }
+
+      if (highestId > previous) window.localStorage.setItem(key, String(highestId))
+    }
 
     async function loadIdentity() {
       const { data } = await client.auth.getSession()
@@ -41,12 +106,19 @@ export function InternalShell({ active, children }: InternalShellProps) {
 
       if (!activeEffect) return
       setRoles((roleResult.data ?? []).map((row) => String(row.role)))
-      setMfaActive(!aalResult.error && aalResult.data.currentLevel === 'aal2')
+      const aal2 = !aalResult.error && aalResult.data.currentLevel === 'aal2'
+      setMfaActive(aal2)
+
+      if (aal2) {
+        await refreshNotifications(session.user.id, false)
+        timer = window.setInterval(() => void refreshNotifications(session.user.id, true), 15_000)
+      }
     }
 
     void loadIdentity()
     return () => {
       activeEffect = false
+      if (timer) window.clearInterval(timer)
     }
   }, [])
 
@@ -73,7 +145,7 @@ export function InternalShell({ active, children }: InternalShellProps) {
         </a>
         <nav className="internal-nav" aria-label="Área interna">
           <a className={active === 'operations' ? 'active' : ''} href="#/operacoes"><Gauge size={18} /> Operações</a>
-          <a href="#/operacoes"><Bell size={18} /> Notificações <span className="nav-count">0</span></a>
+          <a className={active === 'notifications' ? 'active' : ''} href="#/notificacoes"><Bell size={18} /> Notificações <span className="nav-count">{unreadCount > 99 ? '99+' : unreadCount}</span></a>
           {canAdmin && <a className={active === 'admin' ? 'active' : ''} href="#/admin"><Settings size={18} /> Administração</a>}
         </nav>
         <div className="internal-user">

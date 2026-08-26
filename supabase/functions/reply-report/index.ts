@@ -42,32 +42,13 @@ Deno.serve(async (req) => {
 
     const cryptoMaterial = await loadPublicCryptoMaterial(service)
     const digest = await protocolDigest(protocol, cryptoMaterial.protocolPepper)
-    const { data: messageId, error } = await service.rpc('add_reporter_message_internal', {
+    const { error } = await service.rpc('add_reporter_message_internal', {
       p_protocol_digest: digest,
       p_body: body,
     })
     if (error) return reply(500, { error: 'message_delivery_failed' })
 
-    if (messageId) {
-      const { data: reportId } = await service.rpc('lookup_report_id_internal', { p_protocol_digest: digest })
-      if (reportId) {
-        const { data: report } = await service.from('reports').select('organization_id').eq('id', reportId).maybeSingle()
-        if (report?.organization_id) {
-          try {
-            await service.functions.invoke('dispatch-email-notification', {
-              body: {
-                organizationId: String(report.organization_id),
-                eventType: 'report.message.created',
-                objectId: String(reportId),
-              },
-            })
-          } catch {
-            // A mensagem já foi persistida; notificação interna é best-effort.
-          }
-        }
-      }
-    }
-
+    // A trigger do banco cria os avisos internos e e-mails na mesma transação da mensagem.
     return reply(200, { accepted: true })
   } catch (error) {
     if (error instanceof GatewayAuthError) return reply(error.status, { error: error.code })

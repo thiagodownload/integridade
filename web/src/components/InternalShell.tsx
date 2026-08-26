@@ -66,13 +66,14 @@ export function InternalShell({ active, children }: InternalShellProps) {
 
       const key = `integridade:last-notification:${userId}`
       const highestId = rows.reduce((max, row) => Math.max(max, row.id), 0)
-      const previous = Number(window.localStorage.getItem(key) ?? 0)
+      const storedPrevious = window.localStorage.getItem(key)
 
-      if (previous === 0) {
-        if (highestId > 0) window.localStorage.setItem(key, String(highestId))
+      if (storedPrevious === null) {
+        window.localStorage.setItem(key, String(highestId))
         return
       }
 
+      const previous = Number(storedPrevious)
       const newUnread = rows
         .filter((row) => row.read_at == null && row.id > previous)
         .sort((a, b) => a.id - b.id)

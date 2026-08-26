@@ -238,17 +238,16 @@ export function OperationsPage() {
     setStatusDraft(parsed.status)
     setPriorityDraft(parsed.priority)
 
-    const canManage = parsed.restricted ? roles.includes('privacy_officer') : roles.includes('compliance_manager')
-    if (canManage) {
-      const { data: candidateRows } = await supabase.rpc('operations_assignment_candidates', { p_report_id: reportId })
+    const { data: candidateRows, error: candidatesError } = await supabase.rpc('operations_assignment_candidates', { p_report_id: reportId })
+    if (candidatesError) {
+      setCandidates([])
+    } else {
       setCandidates((candidateRows ?? []).map((row: Record<string, unknown>) => ({
         user_id: String(row.user_id),
         display_name: String(row.display_name ?? ''),
         email: row.email == null ? null : String(row.email),
         roles: Array.isArray(row.roles) ? row.roles.map((role) => String(role) as StaffRole) : [],
       })))
-    } else {
-      setCandidates([])
     }
     setDetailLoading(false)
   }

@@ -1,0 +1,24 @@
+.notifications-header{align-items:flex-start}
+.notification-browser-card{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px;margin-bottom:18px}
+.notification-browser-card>div{display:flex;align-items:center;gap:14px;min-width:0}
+.notification-browser-card>div>div{display:grid;gap:4px}
+.notification-browser-card strong{font-size:15px;color:#10294b}
+.notification-browser-card span{font-size:13px;color:#60718b}
+.notification-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:#edf4ff;color:#1767e8;flex:0 0 auto}
+.notifications-card{overflow:hidden}
+.notifications-card .card-header{align-items:center}
+.notification-list{display:grid}
+.notification-item{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:14px;align-items:center;padding:18px 20px;border-top:1px solid #e6ecf4;background:#fff}
+.notification-item:first-child{border-top:0}
+.notification-item.unread{background:#f7faff}
+.notification-item.read{opacity:.82}
+.notification-dot{width:9px;height:9px;border-radius:999px;background:#c3cfdf}
+.notification-item.unread .notification-dot{background:#1767e8;box-shadow:0 0 0 4px #e9f1ff}
+.notification-copy{min-width:0;display:grid;gap:5px}
+.notification-copy>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.notification-copy strong{font-size:14px;color:#122a4b}
+.notification-copy p{margin:0;font-size:13px;line-height:1.5;color:#51647e}
+.notification-copy small{font-size:11px;color:#8090a6}
+.notification-unread-label{display:inline-flex;padding:3px 7px;border-radius:999px;background:#e9f1ff;color:#1767e8!important;font-size:10px!important;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.notification-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+@media(max-width:760px){.notification-browser-card{align-items:stretch;flex-direction:column}.notification-item{grid-template-columns:10px minmax(0,1fr)}.notification-actions{grid-column:2;justify-content:flex-start}.notification-actions .button{width:100%;justify-content:center}}

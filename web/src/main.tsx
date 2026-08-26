@@ -10,6 +10,7 @@ import './case-activity.css'
 import './track-messages.css'
 import './attachments.css'
 import './notifications.css'
+import './help.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

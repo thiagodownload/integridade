@@ -1,0 +1,38 @@
+name: Source backup
+
+on:
+  push:
+    paths:
+      - '.github/workflows/source-backup.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          SHA="$(git rev-parse HEAD)"
+          git archive --format=tar.gz --output="backup/integridade-source-${SHA}.tar.gz" HEAD
+          printf '%s\n' "${SHA}" > backup/COMMIT_SHA.txt
+          git log -1 --format='commit=%H%nsubject=%s%nauthor=%an%ndate=%aI' > backup/COMMIT_INFO.txt
+          sha256sum "backup/integridade-source-${SHA}.tar.gz" > backup/SHA256SUMS.txt
+
+      - name: Upload source backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: integridade-source-snapshot
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error

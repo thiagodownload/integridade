@@ -1,5 +1,6 @@
 name: Source backup
 
+# Manual portability snapshot trigger - 2026-09-29
 on:
   push:
     paths:

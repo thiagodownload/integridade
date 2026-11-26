@@ -1,4 +1,4 @@
-import { Menu, ShieldCheck, X } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
 
 export function PublicHeader() {
@@ -9,10 +9,10 @@ export function PublicHeader() {
   return (
     <header className="site-header">
       <a className="brand" href="#/" aria-label="Canal de Integridade - página inicial" onClick={close}>
-        <span className="brand-icon" aria-hidden="true"><ShieldCheck size={22} /></span>
+        <img className="mundial-logo" src="/mundial-logo.svg" alt="Grupo Mundial" />
         <span className="brand-copy">
           <strong>Canal de Integridade</strong>
-          <small>Seguro. Confidencial. Acompanhável.</small>
+          <small>Grupo Mundial • Seguro e confidencial</small>
         </span>
       </a>
 

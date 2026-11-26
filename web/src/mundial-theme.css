@@ -183,3 +183,35 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   .site-header .mundial-logo { width: 84px; }
   .site-header .brand-copy strong { font-size: .75rem; }
 }
+
+
+/* Ajustes finais de consistência da identidade visual */
+/* Elementos compartilhados em telas de ativação/autenticação */
+.brand-icon {
+  background: linear-gradient(145deg, #2b9852, #155b39);
+  box-shadow: 0 10px 24px rgba(30, 112, 71, .20);
+}
+.auth-page {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(43, 152, 82, .10), transparent 32%),
+    linear-gradient(160deg, #f9fbf8 0%, #eff6ee 100%);
+}
+
+/* Seletores, usuários internos e cores de prioridade */
+.field select { color: var(--text); border-color: #cddfd0; }
+.sla-editor.priority-medium { border-left-color: #9aab49; }
+.sla-editor-title strong,
+.access-section-title strong,
+.role-option strong { color: var(--navy); }
+.staff-avatar { background: #17412d; color: #fff; }
+
+/* Tutorial e notificações, inclusive seus textos de destaque */
+.help-step-icon { background: linear-gradient(145deg, #eaf5ed, #eff8e9); }
+.help-step-copy > p,
+.help-step-copy li,
+.help-flow-list strong,
+.help-principle-list p { color: #405b49; }
+.help-tour-footer { background: #f7faf6; border-top-color: var(--line); }
+.help-dots button:not(.active) { background: #c7dacc; }
+.notification-browser-card strong,
+.notification-copy strong { color: var(--navy); }

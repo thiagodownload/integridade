@@ -1,0 +1,185 @@
+/*
+ * Identidade visual do Grupo Mundial.
+ * Carregado após os estilos funcionais para preservar os fluxos de denúncia,
+ * autenticação, permissões, notificações e auditoria.
+ * Paleta extraída da marca institucional enviada pela empresa.
+ */
+:root {
+  --navy: #183d2b;
+  --navy-2: #1e7047;
+  --blue: #1e7047;
+  --blue-2: #155b39;
+  --sky: #eaf5ed;
+  --surface-muted: #f5f8f4;
+  --text: #26392d;
+  --muted: #627469;
+  --line: #dce7dd;
+  --success: #1e7047;
+  --shadow: 0 20px 56px rgba(17, 65, 37, .10);
+  color: var(--text);
+  background: var(--surface-muted);
+}
+
+body { background: var(--surface-muted); color: var(--text); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #9dbc61;
+  outline-offset: 2px;
+}
+
+/* Marca oficial no cabeçalho, rodapé e área de equipe */
+.site-header {
+  border-bottom-color: #dce7dd;
+  background: rgba(255, 255, 255, .96);
+}
+.mundial-logo { display: block; width: 136px; max-width: 100%; height: auto; flex: 0 0 auto; }
+.site-header .brand { gap: 15px; }
+.site-header .brand-copy { border-left: 1px solid var(--line); padding-left: 15px; }
+.site-header .brand-copy strong { color: var(--navy); font-size: .97rem; }
+.site-header .brand-copy small { color: #637569; }
+.main-nav a { color: #385344; }
+.main-nav a:hover { background: #eaf5ed; color: #155b39; }
+.main-nav .nav-internal { background: #f1f8f2; border-color: #cfe1d1; color: #195d3b; }
+.mobile-menu-button { color: #155b39; }
+
+/* Portal público */
+.public-app main {
+  background:
+    radial-gradient(ellipse at 84% 5%, rgba(157,188,97,.11), transparent 42%),
+    linear-gradient(#f9fbf8, #f5f8f4);
+}
+.hero-copy h1, .page-heading h1, .legal-page h1, .success-page h1,
+.section-heading h2, .feature-card h3 { color: var(--navy); }
+.hero-copy h1 span { color: #1e7047; }
+.eyebrow { color: #1e7047; }
+.button.primary {
+  background: linear-gradient(135deg, #1e7047, #155b39);
+  box-shadow: 0 10px 26px rgba(30,112,71,.20);
+}
+.button.primary:hover { background: linear-gradient(135deg, #288755, #1e7047); }
+.button.secondary { color: #254632; border-color: #cddfd0; }
+.button.secondary:hover { background: #f1f8f2; }
+.hero-panel {
+  background: linear-gradient(155deg, #1d5739, #102f23);
+  box-shadow: 0 32px 74px rgba(16,62,37,.20);
+}
+.hero-panel::after { background: rgba(157,188,97,.15); }
+.panel-kicker { color: #c9e5ac; }
+.flow-list li > span {
+  background: rgba(157,188,97,.20);
+  border-color: rgba(203,225,172,.38);
+  color: #effbdc;
+}
+.flow-list p { color: #d3e2d5; }
+.feature-card { border-color: var(--line); box-shadow: 0 8px 26px rgba(22,65,39,.045); }
+.feature-card > span { background: #eaf5ed; color: #1e7047; }
+.trust-item { color: #546c5c; }
+.trust-item svg { color: #2b9852; }
+
+/* Formulários, acompanhamento e feedback visual */
+.form-progress { background: #e4ede4; }
+.form-progress span, .progress-track span { background: linear-gradient(90deg, #1e7047, #9dbc61); }
+.choice-card.selected, .role-option.selected {
+  border-color: #75ad85;
+  background: #eff8ee;
+  color: #1b6040;
+  box-shadow: 0 0 0 2px rgba(30,112,71,.08);
+}
+.choice-card svg, .aside-card svg, .privacy-note svg, .security-callout svg { color: #1e7047; }
+.field input:focus, .field textarea:focus, .field select:focus,
+.message-composer textarea:focus {
+  border-color: #509c68;
+  box-shadow: 0 0 0 3px rgba(43,152,82,.12);
+}
+.upload-zone { background: #f8fcf8; border-color: #afc9b4; }
+.protocol-card { background: #17412c; }
+.protocol-card small { color: #c7dec9; }
+.timeline-row.current > span { background: #2b9852; box-shadow: 0 0 0 4px #e7f5e8; }
+.reply-box > svg { color: #1e7047; }
+.security-callout { background: #f3f9f3; border-color: #d6e8d8; }
+
+/* Painéis internos */
+.internal-layout { background: #f3f7f2; }
+.internal-sidebar { background: linear-gradient(175deg, #17412d, #102a20); }
+.internal-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-bottom: 18px;
+}
+.internal-brand .mundial-logo {
+  width: 162px;
+  background: #fff;
+  border-radius: 9px;
+  padding: 5px 7px;
+}
+.internal-brand > span:last-child { display: grid; gap: 3px; }
+.internal-brand strong { color: #f4faf4; }
+.internal-brand small { color: #b9d5c0; }
+.internal-nav a { color: #bed6c4; }
+.internal-nav a:hover, .internal-nav a.active {
+  background: rgba(157,188,97,.20);
+  color: #fff;
+}
+.nav-count { background: #2b9852; }
+.avatar { background: #2d6546; color: #e6f5e5; }
+.internal-user small, .internal-user button { color: #b0cab8; }
+.internal-header h1, .metric-card > strong, .card-header strong { color: var(--navy); }
+.metric-icon { background: #edf7ed; color: #1e7047; }
+.metric-card { border-color: var(--line); }
+.admin-tabs button.active { color: #1e7047; border-color: #cce2ce; }
+.switch input:checked + span { background: #2b9852; }
+
+/* Operações, mensagens, convites, notificações e ajuda */
+.operations-feedback { border-color: #c6dfcb; background: #f1f8f2; color: #28523b; }
+.selected-row { background: #f2f9f2; }
+.case-section { border-color: var(--line); background: #fafcf9; }
+.activity-dot { background: #2b9852; box-shadow: 0 0 0 4px #e9f5e9; }
+.case-message.reporter, .public-message.staff, .public-message.system {
+  background: #f0f8f1;
+  border-color: #cfe4d1;
+}
+.message-kind button.active { border-color: #8fc49c; background: #ebf6ed; color: #1e7047; }
+.activity-feedback { background: #f1f7f0; color: #4d6d57; }
+.access-section-icon { background: #eaf5ed; color: #1e7047; }
+.staff-meta-grid svg { color: #1e7047; }
+.notification-icon { background: #eaf5ed; color: #1e7047; }
+.notification-item.unread { background: #f3f9f2; }
+.notification-item.unread .notification-dot { background: #2b9852; box-shadow: 0 0 0 4px #e5f4e5; }
+.notification-unread-label { background: #e5f4e5; color: #1e7047 !important; }
+.help-welcome-icon, .help-step-icon, .help-flow-list li > span {
+  background: #eaf5ed; color: #1e7047;
+}
+.help-progress span { background: linear-gradient(90deg, #1e7047, #9dbc61); }
+.help-note { border-color: #cfe3d1; background: #f3f9f3; color: #41634c; }
+.help-note svg { color: #1e7047; }
+.help-dots button.active { background: #2b9852; }
+.help-closing { background: #183d2b; }
+.help-closing span { color: #c7dfcc; }
+.auth-page { background: linear-gradient(160deg, #f9fbf8 0%, #eff6ee 100%); }
+
+/* Rodapé preserva a marca original em fundo branco. */
+.site-footer { background: #102e21; color: #e3f0e5; }
+.site-footer .footer-brand { gap: 17px; max-width: 660px; }
+.site-footer .mundial-logo {
+  width: 140px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  background: #fff;
+}
+.site-footer .footer-brand p, .site-footer > small { color: #b2cdbb; }
+.site-footer .footer-links a { color: #d7e9d9; }
+.site-footer .footer-links a:hover { color: #fff; }
+
+@media (max-width: 760px) {
+  .site-header .brand { gap: 9px; }
+  .site-header .mundial-logo { width: 94px; }
+  .site-header .brand-copy { padding-left: 9px; }
+  .site-header .brand-copy strong { font-size: .82rem; }
+  .site-footer .footer-brand { align-items: flex-start; flex-wrap: wrap; }
+  .site-footer .mundial-logo { width: 125px; }
+}
+@media (max-width: 390px) {
+  .site-header .mundial-logo { width: 84px; }
+  .site-header .brand-copy strong { font-size: .75rem; }
+}

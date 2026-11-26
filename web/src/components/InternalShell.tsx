@@ -141,8 +141,8 @@ export function InternalShell({ active, children }: InternalShellProps) {
     <div className="internal-layout">
       <aside className="internal-sidebar">
         <a className="internal-brand" href="#/operacoes">
-          <span className="brand-icon"><ShieldCheck size={21} /></span>
-          <span><strong>Integridade</strong><small>Área interna</small></span>
+          <img className="mundial-logo" src="/mundial-logo.svg" alt="Grupo Mundial" />
+          <span><strong>Canal de Integridade</strong><small>Grupo Mundial • Área interna</small></span>
         </a>
         <nav className="internal-nav" aria-label="Área interna">
           <a className={active === 'operations' ? 'active' : ''} href="#/operacoes"><Gauge size={18} /> Operações</a>
